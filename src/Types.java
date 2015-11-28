@@ -7,6 +7,7 @@ class Types{
  public static final int Unknown = 5;
  public static final int Real = 6;
  public static final int String = 7;
+ public static final int Float = 8;
 
  Types(int i){val = i;}
  Types(){val = Unknown;}
@@ -21,7 +22,8 @@ class Types{
 	  case 5: return "Unknown";
 	  case 6: return "Real";
  	  case 7: return "String";
-	  default: throw new RuntimeException();
+	  case 8: return "Float";
+	  default: throw new RuntimeException("Types.toString() val: " + val + " was not included in switch statement.");
 	}
  }
 

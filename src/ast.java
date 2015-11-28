@@ -13,14 +13,14 @@ abstract class ASTNode
 		}
 	} // genIndent
 
-	static void mustBe(boolean assertion)
+	static void assertTrue(boolean assertion, String errorMsg)
 	{
 		if (!assertion) {
-			throw new RuntimeException();
+			throw new RuntimeException(errorMsg);
 		}
 	} // mustBe
 
-	static void typeMustBe(int testType, int requiredType, String errorMsg)
+	static void assertTypeEquals(int testType, int requiredType, String errorMsg)
 	{
 		if ((testType != Types.Error) && (testType != requiredType)) {
 			System.out.println(errorMsg);
@@ -73,9 +73,8 @@ abstract class ASTNode
 
 	// This will normally need to be redefined in a subclass
 
-	void checkTypes()
-	{
-	}
+	abstract void checkTypes();
+	
 	// This will normally need to be redefined in a subclass
 } // abstract class ASTNode
 
@@ -95,6 +94,12 @@ class nullNode extends ASTNode
 	void Unparse(int indent)
 	{
 		// no action
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class nullNode
 
@@ -135,23 +140,28 @@ class csxLiteNode extends ASTNode
 
 class classNode extends ASTNode
 {
-
 	classNode(identNode id, memberDeclsNode memb, int line, int col,
 			int closingLine)
-			{
+	{
 		super(line, col);
 		className = id;
 		members = memb;
 		closingLineNum = closingLine;
-			} // classNode
+	} // classNode
 
 	private final identNode className;
 	private final memberDeclsNode members;
 	private int closingLineNum;
 
+	boolean isTypeCorrect()
+	{
+		st.openScope();
+		members.checkTypes();
+		return (typeErrors == 0);
+	} // isTypeCorrect
+
 	void Unparse(int indent)
 	{
-
 		// Print like:
 		// ##: class name {
 		// members.Unparse
@@ -167,6 +177,12 @@ class classNode extends ASTNode
 		System.out.print(closingLineNum + ": ");
 		genIndent(indent);
 		System.out.println("} EOF");
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class classNode
 
@@ -189,6 +205,12 @@ class memberDeclsNode extends ASTNode
 	{
 		fields.Unparse(indent);
 		methods.Unparse(indent);
+	}
+	
+	void checkTypes()
+	{
+		fields.checkTypes();
+		methods.checkTypes();
 	}
 } // class memberDeclsNode
 
@@ -220,6 +242,11 @@ class fieldDeclsNode extends ASTNode
 	{
 		thisField.Unparse(indent);
 		moreFields.Unparse(indent);
+	}
+	
+	void checkTypes()
+	{
+		thisField.checkTypes();
 	}
 } // class fieldDeclsNode
 
@@ -280,6 +307,31 @@ class varDeclNode extends declNode
 		initValue.Unparse(0);
 		System.out.println(";");
 	}
+
+	void checkTypes() {
+		SymbolInfo id;
+		id = (SymbolInfo) st.localLookup(varName.idname);
+		if (id == null) {
+			id = new SymbolInfo(varName.idname,
+				new Kinds(Kinds.Var), varType.type);
+			varName.type = varType.type;
+			try {
+				st.insert(id);
+			} catch (DuplicateException d) {
+				/* can't happen */
+				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
+			} catch (EmptySTException e) {
+				/* can't happen */
+				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
+			}
+			varName.idinfo = id;
+		} else {
+			System.out.println(error() + id.name() + " is already declared.");
+			typeErrors++;
+			varName.type = new Types(Types.Error);
+		} // id != null
+	} // checkTypes
+	
 } // class varDeclNode
 
 class constDeclNode extends declNode
@@ -304,6 +356,12 @@ class constDeclNode extends declNode
 		System.out.print(" = ");
 		constValue.Unparse(0);
 		System.out.println(";");
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class constDeclNode
 
@@ -334,6 +392,12 @@ class arrayDeclNode extends declNode
 		arraySize.Unparse(0);
 		System.out.println("];");
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class arrayDeclNode
 
 abstract class typeNode extends ASTNode
@@ -343,13 +407,17 @@ abstract class typeNode extends ASTNode
 	{
 		super();
 	}
-
-	typeNode(int l, int c)
+	
+	typeNode(int l,int c, Types t)
 	{
-		super(l, c);
+		super(l,c);
+		type = t;
 	}
-
+	
 	static nullTypeNode NULL = new nullTypeNode();
+	
+	// Used for typechecking -- the type of this typeNode
+	Types type;
 } // class typeNode
 
 class nullTypeNode extends typeNode
@@ -362,9 +430,10 @@ class nullTypeNode extends typeNode
 	{
 		return true;
 	}
-
-	void Unparse(int indent)
+	
+	void checkTypes()
 	{
+		// No type checking needed
 	}
 } // class nullTypeNode
 
@@ -372,7 +441,7 @@ class intTypeNode extends typeNode
 {
 	intTypeNode(int line, int col)
 	{
-		super(line, col);
+		super(line, col, new Types(Types.Integer));
 	}
 
 	// Just print the data type INT
@@ -380,13 +449,18 @@ class intTypeNode extends typeNode
 	{
 		System.out.print("INT");
 	}
+	
+	void checkTypes()
+	{
+		// No type checking needed
+	}
 } // class intTypeNode
 
 class floatTypeNode extends typeNode
 {
 	floatTypeNode(int line, int col)
 	{
-		super(line, col);
+		super(line, col, new Types(Types.Float));
 	}
 
 	// Just print the data type FLOAT
@@ -394,13 +468,18 @@ class floatTypeNode extends typeNode
 	{
 		System.out.print("FLOAT");
 	}
+	
+	void checkTypes()
+	{
+		// No type checking needed
+	}
 } // class floatTypeNode
 
 class boolTypeNode extends typeNode
 {
 	boolTypeNode(int line, int col)
 	{
-		super(line, col);
+		super(line, col, new Types(Types.Boolean));
 	}
 
 	// Just print the data type BOOL
@@ -408,13 +487,18 @@ class boolTypeNode extends typeNode
 	{
 		System.out.print("BOOL");
 	}
+	
+	void checkTypes()
+	{
+		// No type checking needed
+	}
 } // class boolTypeNode
 
 class charTypeNode extends typeNode
 {
 	charTypeNode(int line, int col)
 	{
-		super(line, col);
+		super(line, col, new Types(Types.Character));
 	}
 
 	// Just print the data type CHAR
@@ -422,19 +506,29 @@ class charTypeNode extends typeNode
 	{
 		System.out.print("CHAR");
 	}
+	
+	void checkTypes()
+	{
+		// No type checking needed
+	}
 } // class charTypeNode
 
 class voidTypeNode extends typeNode
 {
 	voidTypeNode(int line, int col)
 	{
-		super(line, col);
+		super(line, col, new Types(Types.Void));
 	}
 
 	// Just print the data type VOID
 	void Unparse(int indent)
 	{
 		System.out.print("VOID");
+	}
+	
+	void checkTypes()
+	{
+		// No type checking needed
 	}
 } // class voidTypeNode
 
@@ -466,6 +560,12 @@ class methodDeclsNode extends ASTNode
 	{
 		thisDecl.Unparse(indent);
 		moreDecls.Unparse(indent);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class methodDeclsNode
 
@@ -527,6 +627,12 @@ class methodDeclNode extends ASTNode
 		genIndent(indent);
 		System.out.println("}");
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class methodDeclNode
 
 // abstract superclass; only subclasses are actually created
@@ -574,6 +680,12 @@ class argDeclsNode extends ASTNode
 
 		moreDecls.Unparse(0);
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class argDeclsNode
 
 class nullArgDeclsNode extends argDeclsNode
@@ -589,6 +701,12 @@ class nullArgDeclsNode extends argDeclsNode
 
 	void Unparse(int indent)
 	{
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class nullArgDeclsNode
 
@@ -613,6 +731,12 @@ class arrayArgDeclNode extends argDeclNode
 		argName.Unparse(0);
 		System.out.print("[]");
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class arrayArgDeclNode
 
 class valArgDeclNode extends argDeclNode
@@ -634,6 +758,12 @@ class valArgDeclNode extends argDeclNode
 		argType.Unparse(0);
 		System.out.print(" ");
 		argName.Unparse(0);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class valArgDeclNode
 
@@ -666,6 +796,12 @@ class nullStmtNode extends stmtNode
 
 	void Unparse(int indent)
 	{
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class nullStmtNode
 
@@ -710,6 +846,12 @@ class stmtsNode extends ASTNode
 		System.out.println();
 		moreStmts.Unparse(indent);
 	}
+	
+	void checkTypes()
+	{
+		thisStmt.checkTypes();
+		moreStmts.checkTypes();
+	}
 
 	static nullStmtsNode NULL = new nullStmtsNode();
 	private stmtNode thisStmt;
@@ -730,7 +872,11 @@ class nullStmtsNode extends stmtsNode
 	void Unparse(int indent)
 	{
 	}
-
+	
+	void checkTypes()
+	{
+		// No type check needed
+	}
 } // class nullStmtsNode
 
 class asgNode extends stmtNode
@@ -750,6 +896,19 @@ class asgNode extends stmtNode
 		System.out.print(" = ");
 		source.Unparse(0);
 	}
+
+	void checkTypes()
+	{
+		target.checkTypes();
+		source.checkTypes();
+		
+		//TODO: Do we need to change this?
+		assertTrue(target.kind.val == Kinds.Var, "In CSX-lite all IDs should be vars");
+		assertTypeEquals(source.type.val, target.type.val,
+			error() + "Both the left and right"
+			+ " hand sides of an assignment must "
+			+ "have the same type.");
+	} // checkTypes
 
 	private final nameNode target;
 	private final exprNode source;
@@ -833,6 +992,17 @@ class ifThenNode extends stmtNode
 		genIndent(indent);
 		System.out.print("endif");
 	}
+
+	void checkTypes()
+	{
+		condition.checkTypes();
+		//TODO: Is this right?
+		assertTypeEquals(condition.type.val, Types.Boolean,
+			error() + "The control expression of an" + " if must be a bool.");
+		thenPart.checkTypes();
+		// No else parts in CSX Lite
+	}
+	
 } // class ifThenNode
 
 class whileNode extends stmtNode
@@ -868,6 +1038,12 @@ class whileNode extends stmtNode
 		}
 
 		loopBody.Unparse(indent + 1);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class whileNode
 
@@ -906,6 +1082,12 @@ class forNode extends stmtNode
 		update.Unparse(0);
 		System.out.println(")");
 		loopBody.Unparse(indent + 1);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 }
 
@@ -954,6 +1136,12 @@ class readNode extends stmtNode
 			moreReads.Unparse(0, false);
 		}
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class readNode
 
 class nullReadNode extends readNode
@@ -969,6 +1157,7 @@ class nullReadNode extends readNode
 
 	void Unparse(int indent)
 	{
+		// No type check needed
 	}
 } // class nullReadNode
 
@@ -1021,6 +1210,14 @@ class printNode extends stmtNode
 			morePrints.Unparse(0, false);
 		}
 	}
+
+	void checkTypes()
+	{
+		outputValue.checkTypes();
+		//TODO: Is this right?
+		assertTypeEquals(outputValue.type.val, Types.Integer,
+			error() + "Only int values may be printed.");
+	}
 } // class printNode
 
 class nullPrintNode extends printNode
@@ -1036,6 +1233,11 @@ class nullPrintNode extends printNode
 
 	void Unparse(int indent)
 	{
+	}
+	
+	void checkTypes()
+	{
+		// No type check needed
 	}
 } // class nullprintNode
 
@@ -1062,6 +1264,12 @@ class callNode extends stmtNode
 
 		System.out.print(")");
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class callNode
 
 class returnNode extends stmtNode
@@ -1081,6 +1289,12 @@ class returnNode extends stmtNode
 		System.out.print("return ");
 
 		returnVal.Unparse(0);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class returnNode
 
@@ -1117,6 +1331,12 @@ class blockNode extends stmtNode
 		System.out.print("}");
 
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class blockNode
 
 class breakNode extends stmtNode
@@ -1136,6 +1356,12 @@ class breakNode extends stmtNode
 		System.out.print("break ");
 		label.Unparse(0);
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class breakNode
 
 class continueNode extends stmtNode
@@ -1154,6 +1380,12 @@ class continueNode extends stmtNode
 	{
 		System.out.print("continue ");
 		label.Unparse(0);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 } // class continueNode
 
@@ -1187,6 +1419,12 @@ class argsNode extends ASTNode
 
 		moreArgs.Unparse(0);
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 } // class argsNode
 
 class nullArgsNode extends argsNode
@@ -1204,6 +1442,11 @@ class nullArgsNode extends argsNode
 	void Unparse(int indent)
 	{
 	}
+	
+	void checkTypes()
+	{
+		// No type check needed
+	}
 } // class nullArgsNode
 
 class strLitNode extends exprNode
@@ -1220,6 +1463,11 @@ class strLitNode extends exprNode
 	{
 		System.out.print(escapeCharacters(strval));
 	}
+	
+	void checkTypes()
+	{
+		// string lits are always correct
+	}
 } // class strLitNode
 
 // abstract superclass; only subclasses are actually created
@@ -1229,13 +1477,24 @@ abstract class exprNode extends ASTNode
 	{
 		super();
 	}
-
-	exprNode(int l, int c)
+	
+	exprNode(int l,int c)
+	{
+		super(l,c);
+		type = new Types();
+		kind = new Kinds();
+	} // exprNode
+	
+	exprNode(int l, int c, Types t, Kinds k)
 	{
 		super(l, c);
-	}
-
+		type = t;
+		kind = k;
+	} // exprNode
+	
 	static nullExprNode NULL = new nullExprNode();
+	protected Types type; // Used for typechecking: the type of this node
+	protected Kinds kind; // Used for typechecking: the kind of this node
 }
 
 class nullExprNode extends exprNode
@@ -1253,6 +1512,11 @@ class nullExprNode extends exprNode
 	void Unparse(int indent)
 	{
 	}
+	
+	void checkTypes()
+	{
+		// No type check needed
+	}
 } // class nullExprNode
 
 class binaryOpNode extends exprNode
@@ -1265,40 +1529,30 @@ class binaryOpNode extends exprNode
 		rightOperand = e2;
 	}
 
-	static void printOp(int op)
+	static String getOpString(int op)
 	{
 		switch (op)
 		{
 		case sym.PLUS:
-			System.out.print(" + ");
-			break;
+			return " + ";
 		case sym.MINUS:
-			System.out.print(" - ");
-			break;
+			return " - ";
 		case sym.TIMES:
-			System.out.print(" * ");
-			break;
+			return " * ";
 		case sym.SLASH:
-			System.out.print(" / ");
-			break;
+			return " / ";
 		case sym.LT:
-			System.out.print(" < ");
-			break;
+			return " < ";
 		case sym.GT:
-			System.out.print(" > ");
-			break;
+			return " > ";
 		case sym.GEQ:
-			System.out.print(" >= ");
-			break;
+			return " >= ";
 		case sym.LEQ:
-			System.out.print(" <= ");
-			break;
+			return " <= ";
 		case sym.COR:
-			System.out.print(" || ");
-			break;
+			return " || ";
 		case sym.CAND:
-			System.out.print(" && ");
-			break;
+			return " && ";
 
 		default:
 			throw new Error("printOp: case not found");
@@ -1309,10 +1563,29 @@ class binaryOpNode extends exprNode
 	{
 		System.out.print("(");
 		leftOperand.Unparse(0);
-		printOp(operatorCode);
+		System.out.print(" " + getOpString(operatorCode) + " ");
 		rightOperand.Unparse(0);
 		System.out.print(")");
 	}
+
+	void checkTypes()
+	{
+		//TODO: Probably need to fix this?
+		assertTrue(operatorCode== sym.PLUS || operatorCode==sym.MINUS, 
+				"Only two bin ops in CSX-lite");
+		
+		leftOperand.checkTypes();
+		rightOperand.checkTypes();
+		
+		type = new Types(Types.Integer);
+		
+		assertTypeEquals(leftOperand.type.val, Types.Integer,
+			error() + "Left operand of" + getOpString(operatorCode) 
+					+ "must be an int.");
+		assertTypeEquals(rightOperand.type.val, Types.Integer,
+			error() + "Right operand of" + getOpString(operatorCode) 
+					+ "must be an int.");
+	} // checkTypes
 
 	private final exprNode leftOperand;
 	private final exprNode rightOperand;
@@ -1334,6 +1607,12 @@ class unaryOpNode extends exprNode
 			System.out.print("!");
 		}
 		operand.Unparse(0);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 
 	private final exprNode operand;
@@ -1357,6 +1636,12 @@ class castNode extends exprNode
 
 		operand.Unparse(0);
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 
 	private final exprNode operand;
 	private final typeNode resultType;
@@ -1378,6 +1663,12 @@ class fctCallNode extends exprNode
 		methodArgs.Unparse(0);
 		System.out.print(")");
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 
 	private final identNode methodName;
 	private final argsNode methodArgs;
@@ -1387,16 +1678,47 @@ class identNode extends exprNode
 {
 	identNode(String identname, int line, int col)
 	{
-		super(line, col);
+		super(line, col, new Types(Types.Unknown), new Kinds(Kinds.Var));
 		idname = identname;
+		nullFlag = false;
 	}
+
+	identNode(boolean flag)
+	{
+		super(0,0,new Types(Types.Unknown), new Kinds(Kinds.Var));
+		idname = "";
+		nullFlag = flag;
+	} // identNode
 
 	void Unparse(int indent)
 	{
 		System.out.print(idname);
 	}
 
-	private final String idname;
+	void checkTypes()
+	{
+		SymbolInfo id;
+		
+		//TODO: Is this correct?
+		assertTrue(kind.val == Kinds.Var, "In CSX-lite all IDs should be vars");
+		id = (SymbolInfo) st.localLookup(idname);
+		
+		if (id == null)
+		{
+			System.out.println(error() + idname + " is not declared.");
+			typeErrors++;
+			type = new Types(Types.Error);
+		} 
+		else
+		{
+			type = id.type; 
+			idinfo = id; // Save ptr to correct symbol table entry
+		}
+	} // checkTypes
+
+	public String idname;
+	public SymbolInfo idinfo; // symbol table entry for this ident
+	private final boolean nullFlag;
 } // class identNode
 
 class nameNode extends exprNode
@@ -1410,7 +1732,13 @@ class nameNode extends exprNode
 
 	void Unparse(int indent)
 	{
-		varName.Unparse(indent); // Subscripts not allowed in CSX Lite
+		varName.Unparse(indent);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 
 	public final identNode varName;
@@ -1429,6 +1757,11 @@ class intLitNode extends exprNode
 	{
 		System.out.print(intval);
 	}
+	
+	void checkTypes()
+	{
+		// All int lits are automatically type-correct
+	}
 
 	private final int intval;
 } // class intLitNode
@@ -1444,6 +1777,11 @@ class floatLitNode extends exprNode
 	void Unparse(int indent)
 	{
 		System.out.print(floatval);
+	}
+	
+	void checkTypes()
+	{
+		// All float lits are automatically type-correct
 	}
 
 	private final float floatval;
@@ -1462,6 +1800,11 @@ class charLitNode extends exprNode
 		String tmp = escapeCharacters(charval);
 		System.out.print(tmp);
 	}
+	
+	void checkTypes()
+	{
+		// All char lits are automatically type-correct
+	}
 
 	private final char charval;
 } // class charLitNode
@@ -1477,6 +1820,11 @@ class trueNode extends exprNode
 	{
 		System.out.print("True");
 	}
+	
+	void checkTypes()
+	{
+		// All true lits are automatically type-correct
+	}
 } // class trueNode
 
 class falseNode extends exprNode
@@ -1489,6 +1837,11 @@ class falseNode extends exprNode
 	void Unparse(int indent)
 	{
 		System.out.print("False");
+	}
+	
+	void checkTypes()
+	{
+		// False literals are always correct
 	}
 } // class falseNode
 
@@ -1506,6 +1859,12 @@ class preIncrStmtNode extends stmtNode
 		genIndent(indent);
 		System.out.print("++");
 		targetID.Unparse(indent);
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 
 	private nameNode targetID;
@@ -1525,6 +1884,12 @@ class postIncrStmtNode extends stmtNode
 		targetID.Unparse(indent);
 		System.out.print("++");
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 
 	private nameNode targetID;
 } // class postIncrStmtNode
@@ -1543,6 +1908,12 @@ class preDecStmtNode extends stmtNode
 		System.out.print("--");
 		targetID.Unparse(indent);
 	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
+	}
 
 	private nameNode targetID;
 } // class preDecStmtNode
@@ -1560,6 +1931,12 @@ class postDecStmtNode extends stmtNode
 	{
 		targetID.Unparse(indent);
 		System.out.print("--");
+	}
+	
+	void checkTypes()
+	{
+		//TODO: implement the type check or remove exception if type is correct always
+		throw new UnsupportedOperationException("We didn't implement this, yet.");
 	}
 
 	private nameNode targetID;
