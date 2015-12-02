@@ -2098,9 +2098,22 @@ class preIncrStmtNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		SymbolInfo id = (SymbolInfo)st.localLookup(targetID.varName.idname);
+
+		intLitNode dec = new intLitNode( 1, targetID.linenum, targetID.colnum);
+
+		binaryOpNode biOp = new binaryOpNode(dec, sym.PLUS, targetID.varName, targetID.linenum, targetID.colnum);
+
+		assertTrue(id != null, error() + "ID " + targetID.varName.idname + 
+				" was referenced but was not yet declared.");
+		
+		if(id != null)
+		{	
+			// Make sure
+			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
+					error()
+					+ "The value you are trying to Increment is invalid");
+		}
 	}
 
 	private nameNode targetID;
@@ -2121,13 +2134,26 @@ class postIncrStmtNode extends stmtNode
 		System.out.print("++");
 	}
 
+	
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
-	}
+		SymbolInfo id = (SymbolInfo)st.localLookup(targetID.varName.idname);
 
+		intLitNode dec = new intLitNode( 1, targetID.linenum, targetID.colnum);
+
+		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
+
+		assertTrue(id != null, error() + "ID " + targetID.varName.idname + 
+				" was referenced but was not yet declared.");
+		
+		if(id != null)
+		{	
+			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
+					error()
+					+ "The value you are trying to Increment is invalid");
+		}
+	}
+	
 	private nameNode targetID;
 } // class postIncrStmtNode
 
@@ -2148,9 +2174,22 @@ class preDecStmtNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		SymbolInfo id = (SymbolInfo)st.localLookup(targetID.varName.idname);
+
+		intLitNode dec = new intLitNode( -1, targetID.linenum, targetID.colnum);
+
+		binaryOpNode biOp = new binaryOpNode(dec, sym.PLUS, targetID.varName, targetID.linenum, targetID.colnum);
+
+		assertTrue(id != null, error() + "ID " + targetID.varName.idname + 
+				" was referenced but was not yet declared.");
+		
+		if(id != null)
+		{	
+			// Make sure
+			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
+					error()
+					+ "The value you are trying to decrement is invalid");
+		}
 	}
 
 	private nameNode targetID;
@@ -2171,12 +2210,27 @@ class postDecStmtNode extends stmtNode
 		System.out.print("--");
 	}
 
+	
+	
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
-	}
+		SymbolInfo id = (SymbolInfo)st.localLookup(targetID.varName.idname);
 
+		intLitNode dec = new intLitNode( -1, targetID.linenum, targetID.colnum);
+
+		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
+
+		assertTrue(id != null, error() + "ID " + targetID.varName.idname + 
+				" was referenced but was not yet declared.");
+		
+		if(id != null)
+		{	
+			// Make sure
+			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
+					error()
+					+ "The value you are trying to decrement is invalid");
+		}
+	}
+	
 	private nameNode targetID;
 } // class postDecStmtNode 
