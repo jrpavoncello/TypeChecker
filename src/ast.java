@@ -22,44 +22,55 @@ abstract class ASTNode
 
 	static void assertAssignmentCompatible(SymbolInfo info, exprNode expression, String errorMsg)
 	{
-		//Don't print a type incompatible error message when the test type is of type Error
+		// Don't print a type incompatible error message when the test type is of type Error
 		if (expression.type.val != Types.Error)
 		{
 			boolean compatible = false;
 			
-			//Check for any edge cases to the usual pattern of compatible assignment type checking
-			
-			SizedSymbolInfo lhsInfo = null;
-			int sizeOfRHS = 0;
-			
-			//If the LHS is a character array or string
-			if(((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm) && info.type.val == Types.Character) ||
-			   ((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm) && info.type.val == Types.String))
+			if(!info.constant)
 			{
-				if(info instanceof SizedSymbolInfo)
+				// Check for any edge cases to the usual pattern of compatible assignment type checking
+				
+				SizedSymbolInfo lhsInfo = null;
+				int sizeOfRHS = 0;
+				
+				// If the LHS is a character array or string, excluding string literals and constant character arrays, grab its size
+				if(((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm) && info.type.val == Types.Character) ||
+				   ((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm) && info.type.val == Types.String))
 				{
-					lhsInfo = (SizedSymbolInfo)info;
+					if(info instanceof SizedSymbolInfo)
+					{
+						lhsInfo = (SizedSymbolInfo)info;
+					}
 				}
-			}
-			
-			//If the RHS is a character array or string
-			if(((expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm) && expression.type.val == Types.Character) ||
-			   ((expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm) && expression.type.val == Types.String))
-			{
-				sizeOfRHS = expression.size;
-			}
-			
-			if(lhsInfo != null && sizeOfRHS > 0 && lhsInfo.Size == sizeOfRHS)
-			{
-				compatible = true;
-			}
-			
-			//No edge case, just make sure the types are equivalent
-			if((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm) && 
-					(expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm || expression.kind.val == Kinds.Value) &&
-					info.type.val == expression.type.val)
-			{
-				compatible = true;
+				
+				// If the RHS is a character array or string, including string literals, grab its size
+				if(((expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm) && expression.type.val == Types.Character) ||
+				   ((expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm || expression.kind.val == Kinds.Value) && expression.type.val == Types.String))
+				{
+					sizeOfRHS = expression.size;
+				}
+				
+				// If we've gotten both the LHS and RHS sizes, and they are equal
+				if(lhsInfo != null && sizeOfRHS > 0 && lhsInfo.Size == sizeOfRHS)
+				{
+					compatible = true;
+				}
+				
+				//No edge cases found, so just check that the kinds are compatible and types are the same
+				
+				// Check that the kinds are compatible
+				if(((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm) && 
+						(expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm)) ||
+					((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm) && 
+						(expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm || expression.kind.val == Kinds.Value)))
+				{
+					// Check that the types are exactly equivalent
+					if(info.type.val == expression.type.val)
+					{
+						compatible = true;
+					}
+				}
 			}
 			
 			if(!compatible)
@@ -68,9 +79,9 @@ abstract class ASTNode
 				typeErrors++;
 			}
 		}
-	} // typeMustBe
+	}
 
-	static int assertArithmeticCompatible(int rhsKind, int rhsType, int lhsKind, int lhsType, String errorMsg)
+	static int assertArithmeticCompatible(int lhsKind, int lhsType, int rhsKind, int rhsType, String errorMsg)
 	{
 		int returnType = Types.Unknown;
 		
@@ -114,6 +125,21 @@ abstract class ASTNode
 		}
 		
 		return returnType;
+	}
+	
+	static int assertBooleanCompatible(int lhsKind, int lhsType, int rhsKind, int rhsType, String errorMsg)
+	{
+		if(lhsType == Types.Boolean && rhsType == Types.Boolean && 
+				(lhsKind == Kinds.Var || lhsKind == Kinds.ScalarParm || lhsKind == Kinds.Value) && 
+				(rhsKind == Kinds.Var || rhsKind == Kinds.ScalarParm || rhsKind == Kinds.Value))
+		{
+			return Types.Boolean;
+		}
+
+		System.out.println(errorMsg);
+		typeErrors++;
+		
+		return Types.Error;
 	}
 
 	String error()
@@ -408,7 +434,7 @@ class varDeclNode extends declNode
 		id = (SymbolInfo) st.localLookup(varName.idname);
 		if (id == null)
 		{
-			id = new SymbolInfo(varName.idname, new Kinds(Kinds.Var), varType.type);
+			id = new SymbolInfo(varName.idname, new Kinds(Kinds.Var), varType.type, false);
 
 			// Type check the expression
 			rhsExpr.checkTypes();
@@ -419,20 +445,25 @@ class varDeclNode extends declNode
 					error()
 					+ "LHS and RHS are not compatible for assignment");
 
-			try {
+			try
+			{
 				st.insert(id);
-			} catch (DuplicateException d) {
-				/* can't happen */
+			}
+			catch (DuplicateException d)
+			{
 				throw new RuntimeException(
 						"DuplicateException was thrown by st.insert, this \"can't happen\"");
-			} catch (EmptySTException e) {
-				/* can't happen */
+			}
+			catch (EmptySTException e)
+			{
 				throw new RuntimeException(
 						"EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
 
 			varName.idinfo = id;
-		} else {
+		}
+		else
+		{
 			System.out.println(error() + id.name() + " is already declared.");
 			typeErrors++;
 			varName.type = new Types(Types.Error);
@@ -467,11 +498,32 @@ class constDeclNode extends declNode
 
 	void checkTypes()
 	{
-		SymbolInfo id;
-		id = (SymbolInfo) st.localLookup(constName.idname);
-		if (id == null) {
-			constValue.checkTypes();
-		} else {
+		// Get any errors even if the name is already declared
+		constValue.checkTypes();
+		
+		SymbolInfo id = (SymbolInfo)st.localLookup(constName.idname);
+		
+		if (id == null)
+		{
+			id = new SymbolInfo(constName.idname, constValue.kind, constValue.type, true);
+
+			try
+			{
+				st.insert(id);
+			}
+			catch (DuplicateException d)
+			{
+				throw new RuntimeException(
+						"DuplicateException was thrown by st.insert, this \"can't happen\"");
+			}
+			catch (EmptySTException e)
+			{
+				throw new RuntimeException(
+						"EmptySTException was thrown by st.insert, this \"can't happen\"");
+			}
+		}
+		else
+		{
 			System.out.println(error() + id.name() + " is already declared.");
 			typeErrors++;
 			constName.type = new Types(Types.Error);
@@ -509,9 +561,35 @@ class arrayDeclNode extends declNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		SymbolInfo id = (SymbolInfo)st.localLookup(arrayName.idname);
+		
+		if (id == null)
+		{
+			arraySize.checkTypes();
+			
+			id = new SizedSymbolInfo(arrayName.idname, Kinds.Array, elementType.type.val, arraySize.size, false);
+
+			try
+			{
+				st.insert(id);
+			}
+			catch (DuplicateException d)
+			{
+				throw new RuntimeException(
+					"DuplicateException was thrown by st.insert, this \"can't happen\"");
+			}
+			catch (EmptySTException e)
+			{
+				throw new RuntimeException(
+					"EmptySTException was thrown by st.insert, this \"can't happen\"");
+			}
+		}
+		else
+		{
+			System.out.println(error() + id.name() + " is already declared.");
+			typeErrors++;
+			elementType.type = new Types(Types.Error);
+		}
 	}
 } // class arrayDeclNode
 
@@ -699,6 +777,11 @@ class nullMethodDeclsNode extends methodDeclsNode
 	void Unparse(int indent)
 	{
 	}
+	
+	void checkTypes()
+	{
+		// Don't type check null 
+	}
 } // class nullMethodDeclsNode
 
 class methodDeclNode extends ASTNode
@@ -746,9 +829,7 @@ class methodDeclNode extends ASTNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		//TODO: Add a symbol info with the method signature
 	}
 } // class methodDeclNode
 
@@ -823,9 +904,7 @@ class nullArgDeclsNode extends argDeclsNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		// Don't need to type check a null node
 	}
 } // class nullArgDeclsNode
 
@@ -921,9 +1000,7 @@ class nullStmtNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		// Do nothing, we don't need to type check a null node
 	}
 } // class nullStmtNode
 
@@ -1021,16 +1098,23 @@ class asgNode extends stmtNode
 
 	void checkTypes()
 	{
-		target.checkTypes();
-		source.checkTypes();
-
-		// Make sure
-		assertAssignmentCompatible(target.varName.idinfo, source, 
-				error()
-				+ "Both the left and right"
-				+ " hand sides of an assignment must "
-				+ "have compatible types.");
-	} // checkTypes
+		SymbolInfo id = (SymbolInfo)st.localLookup(target.varName.idname);
+		
+		assertTrue(id != null, error() + "ID " + target.varName.idname + 
+				" was referenced but was not yet declared.");
+		
+		if(id != null)
+		{
+			source.checkTypes();
+	
+			// Make sure
+			assertAssignmentCompatible(target.varName.idinfo, source, 
+					error()
+					+ "Both the left and right"
+					+ " hand sides of an assignment must "
+					+ "have compatible types.");
+		}
+	}
 
 	private final nameNode target;
 	private final exprNode source;
@@ -1119,7 +1203,7 @@ class ifThenNode extends stmtNode
 	{
 		condition.checkTypes();
 		assertTrue(condition.type.val == Types.Boolean, 
-				error() + "The control expression of an if statement must be a bool.");
+				error() + "The control expression of an if statement must be a boolean.");
 		thenPart.checkTypes();
 		elsePart.checkTypes();
 	}
@@ -1163,9 +1247,12 @@ class whileNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		
+		
+		condition.checkTypes();
+		assertTrue(condition.type.val == Types.Boolean, 
+				error() + "The control expression of a while loop must be a boolean.");
+		loopBody.checkTypes();
 	}
 } // class whileNode
 
@@ -1665,25 +1752,25 @@ class binaryOpNode extends exprNode
 		switch (op)
 		{
 		case sym.PLUS:
-			return " + ";
+			return "+";
 		case sym.MINUS:
-			return " - ";
+			return "-";
 		case sym.TIMES:
-			return " * ";
+			return "*";
 		case sym.SLASH:
-			return " / ";
+			return "/";
 		case sym.LT:
-			return " < ";
+			return "<";
 		case sym.GT:
-			return " > ";
+			return ">";
 		case sym.GEQ:
-			return " >= ";
+			return ">=";
 		case sym.LEQ:
-			return " <= ";
+			return "<=";
 		case sym.COR:
-			return " || ";
+			return "||";
 		case sym.CAND:
-			return " && ";
+			return "&&";
 
 		default:
 			throw new Error("printOp: case not found");
@@ -1701,19 +1788,36 @@ class binaryOpNode extends exprNode
 
 	void checkTypes()
 	{
-		// TODO: Probably need to fix this?
-		assertTrue(operatorCode == sym.PLUS || operatorCode == sym.MINUS,
-				"Only two bin ops in CSX-lite");
-
 		leftOperand.checkTypes();
 		rightOperand.checkTypes();
-
-		type = new Types(Types.Integer);
-
-		//TODO: Check arithmetic compatibility or boolean compatibility
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
 		
+		int returnType = Types.Error;
+		
+		switch(operatorCode)
+		{
+			case sym.PLUS:
+			case sym.MINUS:
+			case sym.TIMES:
+			case sym.SLASH:
+			case sym.LT:
+			case sym.GT:
+			case sym.LEQ:
+			case sym.GEQ:
+			case sym.EQ:
+			case sym.NOTEQ:
+				returnType = assertArithmeticCompatible(leftOperand.kind.val, leftOperand.type.val, rightOperand.kind.val, rightOperand.type.val, 
+						"Left and right operand are not compatible for operator: " + getOpString(operatorCode));
+				break;
+			case sym.CAND:
+			case sym.COR:
+				returnType = assertBooleanCompatible(leftOperand.kind.val, leftOperand.type.val, rightOperand.kind.val, rightOperand.type.val, 
+						"Left and right operands of the operator: " + getOpString(operatorCode) + 
+						" requires both sides to be of type boolean.");
+				break;
+		}
+
+		kind = new Kinds(Kinds.Value);
+		type = new Types(returnType);
 	} // checkTypes
 
 	private final exprNode leftOperand;
@@ -1891,6 +1995,7 @@ class intLitNode extends exprNode
 	void checkTypes()
 	{
 		// All int lits are automatically type-correct
+		size = intval;
 	}
 
 	private final int intval;
