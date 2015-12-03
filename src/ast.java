@@ -1352,9 +1352,8 @@ class readNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		targetVar.checkTypes();
+		moreReads.checkTypes();
 	}
 } // class readNode
 
@@ -1481,9 +1480,8 @@ class callNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		methodName.checkTypes();
+		args.checkTypes();
 	}
 } // class callNode
 
@@ -1508,9 +1506,8 @@ class returnNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		// will this need to work with function calls for recursion?
+		returnVal.checkTypes();
 	}
 } // class returnNode
 
@@ -1550,9 +1547,8 @@ class blockNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		decls.checkTypes();
+		stmts.checkTypes();
 	}
 } // class blockNode
 
@@ -1576,9 +1572,7 @@ class breakNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		label.checkTypes();
 	}
 } // class breakNode
 
@@ -1602,9 +1596,7 @@ class continueNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		label.checkTypes();
 	}
 } // class continueNode
 
@@ -1641,9 +1633,8 @@ class argsNode extends ASTNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		argVal.checkTypes();
+		moreArgs.checkTypes();
 	}
 } // class argsNode
 
