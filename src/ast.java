@@ -245,9 +245,7 @@ class nullNode extends ASTNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		// Null nodes are type correct by default (optional semi)
 	}
 } // class nullNode
 
@@ -1372,6 +1370,7 @@ class whileNode extends stmtNode
 
 	void checkTypes()
 	{
+		//TODO: Type check the label and add it as visible to the current scope, Kind=Label
 		condition.checkTypes();
 		assertTrue(condition.type.val == Types.Boolean, 
 				error() + "The control expression of a while loop must be a boolean.");
@@ -1697,6 +1696,7 @@ class breakNode extends stmtNode
 
 	void checkTypes()
 	{
+		//TODO: Make sure the label exists in scope, is actually of kind label, and is visible
 		label.checkTypes();
 	}
 } // class breakNode
@@ -1721,6 +1721,7 @@ class continueNode extends stmtNode
 
 	void checkTypes()
 	{
+		//TODO: Make sure the label exists in scope, is actually of kind label, and is visible
 		label.checkTypes();
 	}
 } // class continueNode
