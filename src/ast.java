@@ -533,15 +533,15 @@ class constDeclNode extends declNode
 		// Get any errors even if the name is already declared
 		constValue.checkTypes();
 		
-		SymbolInfo id = (SymbolInfo)st.globalLookup(constName.idname);
+		SymbolInfo info = (SymbolInfo)st.globalLookup(constName.idname);
 		
-		if (id == null)
+		if (info == null)
 		{
-			id = new SymbolInfo(constName.idname, constValue.kind, constValue.type, true);
+			info = new SymbolInfo(constName.idname, constValue.kind, constValue.type, true);
 
 			try
 			{
-				st.insert(id);
+				st.insert(info);
 			}
 			catch (DuplicateException d)
 			{
@@ -554,11 +554,11 @@ class constDeclNode extends declNode
 						"EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
 			
-			constName.idinfo = id;
+			constName.idinfo = info;
 		}
 		else
 		{
-			System.out.println(error() + id.name() + " is already declared.");
+			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			constName.type = new Types(Types.Error);
 		}
@@ -595,17 +595,17 @@ class arrayDeclNode extends declNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.globalLookup(arrayName.idname);
+		SymbolInfo info = (SymbolInfo)st.globalLookup(arrayName.idname);
 		
-		if (id == null)
+		if (info == null)
 		{
 			arraySize.checkTypes();
 			
-			id = new SizedSymbolInfo(arrayName.idname, Kinds.Array, elementType.type.val, arraySize.intval, false);
+			info = new SizedSymbolInfo(arrayName.idname, Kinds.Array, elementType.type.val, arraySize.intval, false);
 
 			try
 			{
-				st.insert(id);
+				st.insert(info);
 			}
 			catch (DuplicateException d)
 			{
@@ -618,11 +618,11 @@ class arrayDeclNode extends declNode
 					"EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
 			
-			arrayName.idinfo = id;
+			arrayName.idinfo = info;
 		}
 		else
 		{
-			System.out.println(error() + id.name() + " is already declared.");
+			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			elementType.type = new Types(Types.Error);
 		}
@@ -831,6 +831,7 @@ class methodDeclNode extends ASTNode
 		decls = f;
 		stmts = s;
 		closingLineNum = closingLine;
+		info = null;
 	}
 
 	private final identNode name;
@@ -839,6 +840,7 @@ class methodDeclNode extends ASTNode
 	private final fieldDeclsNode decls;
 	private final stmtsNode stmts;
 	private int closingLineNum;
+	public final MethodSymbolInfo info;
 
 	// Print like:
 	// type id(args){
@@ -864,18 +866,18 @@ class methodDeclNode extends ASTNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.localLookup(name.idname);
+		SymbolInfo info = (SymbolInfo)st.localLookup(name.idname);
 		
-		assertTrue(id == null, error() + "ID " + name.idname + 
+		assertTrue(info == null, error() + "ID " + name.idname + 
 				" was already declared.");
 		
-		if(id == null)
+		if(info == null)
 		{
-			id = new MethodSymbolInfo(name.idname, returnType.type);
+			MethodSymbolInfo methodInfo = new MethodSymbolInfo(name.idname, returnType.type);
 
 			try
 			{
-				st.insert(id);
+				st.insert(methodInfo);
 			}
 			catch (DuplicateException d)
 			{
@@ -999,15 +1001,15 @@ class arrayArgDeclNode extends argDeclNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.globalLookup(arrayName.idname);
+		SymbolInfo info = (SymbolInfo)st.globalLookup(arrayName.idname);
 		
-		if (id == null)
+		if (info == null)
 		{
-			id = new SizedSymbolInfo(arrayName.idname, Kinds.ArrayParm, elementType.type.val, 0, false);
+			info = new SizedSymbolInfo(arrayName.idname, Kinds.ArrayParm, elementType.type.val, 0, false);
 
 			try
 			{
-				st.insert(id);
+				st.insert(info);
 			}
 			catch (DuplicateException d)
 			{
@@ -1020,11 +1022,13 @@ class arrayArgDeclNode extends argDeclNode
 					"EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
 			
-			arrayName.idinfo = id;
+			arrayName.idinfo = info;
+			
+			currentMethod.info.Arguments.add(info);
 		}
 		else
 		{
-			System.out.println(error() + id.name() + " is already declared.");
+			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			elementType.type = new Types(Types.Error);
 		}
@@ -1054,19 +1058,19 @@ class valArgDeclNode extends argDeclNode
 
 	void checkTypes()
 	{
-		SymbolInfo id;
+		SymbolInfo info;
 		// Make sure id is not already declared
-		id = (SymbolInfo) st.globalLookup(argName.idname);
-		if (id == null)
+		info = (SymbolInfo) st.globalLookup(argName.idname);
+		if (info == null)
 		{
-			id = new SymbolInfo(argName.idname, new Kinds(Kinds.ScalarParm), argType.type, false);
+			info = new SymbolInfo(argName.idname, new Kinds(Kinds.ScalarParm), argType.type, false);
 
 			argType.checkTypes();
 			argName.checkTypes();
 
 			try
 			{
-				st.insert(id);
+				st.insert(info);
 			}
 			catch (DuplicateException d)
 			{
@@ -1079,14 +1083,16 @@ class valArgDeclNode extends argDeclNode
 						"EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
 
-			argName.idinfo = id;
+			argName.idinfo = info;
+			
+			currentMethod.info.Arguments.add(info);
 		}
 		else
 		{
-			System.out.println(error() + id.name() + " is already declared.");
+			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			argName.type = new Types(Types.Error);
-		} // id != null
+		}
 	}
 } // class valArgDeclNode
 
@@ -1221,12 +1227,12 @@ class asgNode extends stmtNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.globalLookup(target.varName.idname);
+		SymbolInfo info = (SymbolInfo)st.globalLookup(target.varName.idname);
 		
-		assertTrue(id != null, error() + "ID " + target.varName.idname + 
+		assertTrue(info != null, error() + "ID " + target.varName.idname + 
 				" was referenced but was not yet declared.");
 		
-		if(id != null)
+		if(info != null)
 		{
 			source.checkTypes();
 	
@@ -2233,16 +2239,16 @@ class preIncrStmtNode extends stmtNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.globalLookup(targetID.varName.idname);
+		SymbolInfo info = (SymbolInfo)st.globalLookup(targetID.varName.idname);
 
 		intLitNode dec = new intLitNode( 1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(dec, sym.PLUS, targetID.varName, targetID.linenum, targetID.colnum);
 
-		assertTrue(id != null, error() + "ID " + targetID.varName.idname + 
+		assertTrue(info != null, error() + "ID " + targetID.varName.idname + 
 				" was referenced but was not yet declared.");
 		
-		if(id != null)
+		if(info != null)
 		{	
 			// Make sure
 			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
@@ -2272,16 +2278,16 @@ class postIncrStmtNode extends stmtNode
 	
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.globalLookup(targetID.varName.idname);
+		SymbolInfo info = (SymbolInfo)st.globalLookup(targetID.varName.idname);
 
 		intLitNode dec = new intLitNode( 1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
 
-		assertTrue(id != null, error() + "ID " + targetID.varName.idname + 
+		assertTrue(info != null, error() + "ID " + targetID.varName.idname + 
 				" was referenced but was not yet declared.");
 		
-		if(id != null)
+		if(info != null)
 		{	
 			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
 					error()
@@ -2309,16 +2315,16 @@ class preDecStmtNode extends stmtNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.globalLookup(targetID.varName.idname);
+		SymbolInfo info = (SymbolInfo)st.globalLookup(targetID.varName.idname);
 
 		intLitNode dec = new intLitNode( -1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(dec, sym.PLUS, targetID.varName, targetID.linenum, targetID.colnum);
 
-		assertTrue(id != null, error() + "ID " + targetID.varName.idname + 
+		assertTrue(info != null, error() + "ID " + targetID.varName.idname + 
 				" was referenced but was not yet declared.");
 		
-		if(id != null)
+		if(info != null)
 		{	
 			// Make sure
 			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
@@ -2349,16 +2355,16 @@ class postDecStmtNode extends stmtNode
 	
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.globalLookup(targetID.varName.idname);
+		SymbolInfo info = (SymbolInfo)st.globalLookup(targetID.varName.idname);
 
 		intLitNode dec = new intLitNode( -1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
 
-		assertTrue(id != null, error() + "ID " + targetID.varName.idname + 
+		assertTrue(info != null, error() + "ID " + targetID.varName.idname + 
 				" was referenced but was not yet declared.");
 		
-		if(id != null)
+		if(info != null)
 		{	
 			// Make sure
 			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
