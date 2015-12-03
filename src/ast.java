@@ -1869,9 +1869,20 @@ class castNode extends exprNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		// the project doc says :: Any expression (including variables, constants and literals) 
+		// of type int, char or bool may be type-cast to an int, char, float or bool value. 
+		// These are the only type casts allowed.
+		if(resultType.type.val != (Types.Real | Types.Character | Types.Integer | Types.Boolean))
+		{
+			throw new Error("can only cast to float, char , int and bool");
+		}
+		
+		if((operand.type.val != ( Types.Character | Types.Integer | Types.Boolean)) |(operand.type.val == Types.Real))
+		{
+			throw new Error("can only cast from char , int and bool");
+		}
+	
+		operand.checkTypes();			
 	}
 
 	private final exprNode operand;
