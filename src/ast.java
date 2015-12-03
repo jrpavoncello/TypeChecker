@@ -1844,9 +1844,11 @@ class unaryOpNode extends exprNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+        operand.checkTypes();
+        
+        if(operatorCode != sym.NOT){
+            throw new UnsupportedOperationException("! is the only unary operator");
+        }
 	}
 
 	private final exprNode operand;
