@@ -1970,9 +1970,8 @@ class nameNode extends exprNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+       varName.checkTypes();
+       subscriptVal.checkTypes();
 	}
 
 	public final identNode varName;
