@@ -5,6 +5,7 @@ abstract class ASTNode
 	int colnum;
 
 	static int typeErrors = 0; // Total number of type errors found
+	static methodDeclNode currentMethod = null;
 
 	static void genIndent(int indent)
 	{
@@ -19,6 +20,17 @@ abstract class ASTNode
 			throw new RuntimeException(errorMsg);
 		}
 	} // mustBe
+	
+	static boolean isCharacterArrayOrString(int type, int kind)
+	{
+		return ((kind == Kinds.Array || kind == Kinds.ArrayParm) && type == Types.Character) ||
+				   ((kind == Kinds.Var || kind == Kinds.ScalarParm) && type == Types.String);
+	}
+	
+	static boolean areBothMatchingTypeArrays(int lhsType, int lhsKind, int rhsType, int rhsKind)
+	{
+		return (lhsKind == Kinds.Array || lhsKind == Kinds.ArrayParm) && (rhsKind == Kinds.Array || rhsKind == Kinds.ArrayParm) && lhsType == rhsType;
+	}
 
 	static void assertAssignmentCompatible(SymbolInfo info, exprNode expression, String errorMsg)
 	{
@@ -27,48 +39,70 @@ abstract class ASTNode
 		{
 			boolean compatible = false;
 			
+			// Can't assign to a constant
 			if(!info.constant)
 			{
-				// Check for any edge cases to the usual pattern of compatible assignment type checking
+				// Start checking for array assignment compatibility
 				
-				SizedSymbolInfo lhsInfo = null;
-				int sizeOfRHS = 0;
-				
-				// If the LHS is a character array or string, excluding string literals and constant character arrays, grab its size
-				if(((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm) && info.type.val == Types.Character) ||
-				   ((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm) && info.type.val == Types.String))
+				// RHS can only be name node we are assigning an array
+				if(expression instanceof nameNode)
 				{
-					if(info instanceof SizedSymbolInfo)
+					nameNode name = (nameNode)expression;
+					
+					// Make sure that the name node is not an array being indexed
+					if(!name.isIndexed())
 					{
-						lhsInfo = (SizedSymbolInfo)info;
+						SizedSymbolInfo lhsInfo = null;
+						SizedSymbolInfo rhsInfo = null;
+						
+						boolean areTypeCompatibleArrays = areBothMatchingTypeArrays(info.type.val, info.kind.val, name.type.val, name.kind.val);
+						
+						// If the LHS is a character array or string, excluding string literals and constant character arrays
+						// or we already know both sides are type and kind compatible
+						if(isCharacterArrayOrString(info.type.val, info.kind.val) || areTypeCompatibleArrays)
+						{
+							if(info instanceof SizedSymbolInfo)
+							{
+								lhsInfo = (SizedSymbolInfo)info;
+							}
+						}
+						
+						// If the RHS is a character array or string, including string literals
+						// or we already know both sides are type and kind compatible
+						if(isCharacterArrayOrString(name.type.val, name.kind.val) || areTypeCompatibleArrays)
+						{
+							if(name.varName.idinfo instanceof SizedSymbolInfo)
+							{
+								rhsInfo = (SizedSymbolInfo)name.varName.idinfo;
+							}
+						}
+						
+						// If we've gotten both the LHS and RHS infos, indicating type and kind compatibility
+						if(lhsInfo != null && rhsInfo != null)
+						{
+							//Size must be equal unless either the LHS or RHS are method args, then we can't enforce the array size
+							if(lhsInfo.Size == rhsInfo.Size || info.kind.val == Kinds.ArrayParm || name.kind.val == Kinds.ArrayParm)
+							{
+								compatible = true;
+							}
+						}
 					}
 				}
-				
-				// If the RHS is a character array or string, including string literals, grab its size
-				if(((expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm) && expression.type.val == Types.Character) ||
-				   ((expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm || expression.kind.val == Kinds.Value) && expression.type.val == Types.String))
+					
+				// If no edge case determined the LHS and RHS were compatible
+				if(!compatible)
 				{
-					sizeOfRHS = expression.size;
-				}
-				
-				// If we've gotten both the LHS and RHS sizes, and they are equal
-				if(lhsInfo != null && sizeOfRHS > 0 && lhsInfo.Size == sizeOfRHS)
-				{
-					compatible = true;
-				}
-				
-				//No edge cases found, so just check that the kinds are compatible and types are the same
-				
-				// Check that the kinds are compatible
-				if(((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm) && 
-						(expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm)) ||
-					((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm) && 
-						(expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm || expression.kind.val == Kinds.Value)))
-				{
-					// Check that the types are exactly equivalent
-					if(info.type.val == expression.type.val)
+					// Check that the kinds are compatible
+					if(((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm) && 
+							(expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm)) ||
+						((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm) && 
+							(expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm || expression.kind.val == Kinds.Value)))
 					{
-						compatible = true;
+						// Check that the types are exactly equivalent
+						if(info.type.val == expression.type.val)
+						{
+							compatible = true;
+						}
 					}
 				}
 			}
@@ -431,7 +465,7 @@ class varDeclNode extends declNode
 	{
 		SymbolInfo id;
 		// Make sure id is not already declared
-		id = (SymbolInfo) st.localLookup(varName.idname);
+		id = (SymbolInfo) st.globalLookup(varName.idname);
 		if (id == null)
 		{
 			id = new SymbolInfo(varName.idname, new Kinds(Kinds.Var), varType.type, false);
@@ -467,8 +501,8 @@ class varDeclNode extends declNode
 			System.out.println(error() + id.name() + " is already declared.");
 			typeErrors++;
 			varName.type = new Types(Types.Error);
-		} // id != null
-	} // checkTypes
+		}
+	}
 
 } // class varDeclNode
 
@@ -501,7 +535,7 @@ class constDeclNode extends declNode
 		// Get any errors even if the name is already declared
 		constValue.checkTypes();
 		
-		SymbolInfo id = (SymbolInfo)st.localLookup(constName.idname);
+		SymbolInfo id = (SymbolInfo)st.globalLookup(constName.idname);
 		
 		if (id == null)
 		{
@@ -521,6 +555,8 @@ class constDeclNode extends declNode
 				throw new RuntimeException(
 						"EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
+			
+			constName.idinfo = id;
 		}
 		else
 		{
@@ -561,13 +597,13 @@ class arrayDeclNode extends declNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.localLookup(arrayName.idname);
+		SymbolInfo id = (SymbolInfo)st.globalLookup(arrayName.idname);
 		
 		if (id == null)
 		{
 			arraySize.checkTypes();
 			
-			id = new SizedSymbolInfo(arrayName.idname, Kinds.Array, elementType.type.val, arraySize.size, false);
+			id = new SizedSymbolInfo(arrayName.idname, Kinds.Array, elementType.type.val, arraySize.intval, false);
 
 			try
 			{
@@ -583,6 +619,8 @@ class arrayDeclNode extends declNode
 				throw new RuntimeException(
 					"EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
+			
+			arrayName.idinfo = id;
 		}
 		else
 		{
@@ -757,9 +795,8 @@ class methodDeclsNode extends ASTNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		thisDecl.checkTypes();
+		moreDecls.checkTypes();
 	}
 } // class methodDeclsNode
 
@@ -829,7 +866,40 @@ class methodDeclNode extends ASTNode
 
 	void checkTypes()
 	{
-		//TODO: Add a symbol info with the method signature
+		SymbolInfo id = (SymbolInfo)st.localLookup(name.idname);
+		
+		assertTrue(id == null, error() + "ID " + name.idname + 
+				" was already declared.");
+		
+		if(id == null)
+		{
+			id = new MethodSymbolInfo(name.idname, returnType.type);
+
+			try
+			{
+				st.insert(id);
+			}
+			catch (DuplicateException d)
+			{
+				throw new RuntimeException(
+						"DuplicateException was thrown by st.insert, this \"can't happen\"");
+			}
+			catch (EmptySTException e)
+			{
+				throw new RuntimeException(
+						"EmptySTException was thrown by st.insert, this \"can't happen\"");
+			}
+			
+			currentMethod = this;
+
+			st.openScope();
+			
+			args.checkTypes();
+			
+			decls.checkTypes();
+			
+			stmts.checkTypes();
+		}
 	}
 } // class methodDeclNode
 
@@ -881,9 +951,8 @@ class argDeclsNode extends ASTNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		thisDecl.checkTypes();
+		moreDecls.checkTypes();
 	}
 } // class argDeclsNode
 
@@ -913,11 +982,11 @@ class arrayArgDeclNode extends argDeclNode
 	arrayArgDeclNode(identNode id, typeNode t, int line, int col)
 	{
 		super(line, col);
-		argName = id;
+		arrayName = id;
 		elementType = t;
 	}
 
-	private final identNode argName;
+	private final identNode arrayName;
 	private final typeNode elementType;
 
 	// Print like:
@@ -926,15 +995,41 @@ class arrayArgDeclNode extends argDeclNode
 	{
 		elementType.Unparse(0);
 		System.out.print(" ");
-		argName.Unparse(0);
+		arrayName.Unparse(0);
 		System.out.print("[]");
 	}
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		SymbolInfo id = (SymbolInfo)st.globalLookup(arrayName.idname);
+		
+		if (id == null)
+		{
+			id = new SizedSymbolInfo(arrayName.idname, Kinds.ArrayParm, elementType.type.val, 0, false);
+
+			try
+			{
+				st.insert(id);
+			}
+			catch (DuplicateException d)
+			{
+				throw new RuntimeException(
+					"DuplicateException was thrown by st.insert, this \"can't happen\"");
+			}
+			catch (EmptySTException e)
+			{
+				throw new RuntimeException(
+					"EmptySTException was thrown by st.insert, this \"can't happen\"");
+			}
+			
+			arrayName.idinfo = id;
+		}
+		else
+		{
+			System.out.println(error() + id.name() + " is already declared.");
+			typeErrors++;
+			elementType.type = new Types(Types.Error);
+		}
 	}
 } // class arrayArgDeclNode
 
@@ -961,9 +1056,39 @@ class valArgDeclNode extends argDeclNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		SymbolInfo id;
+		// Make sure id is not already declared
+		id = (SymbolInfo) st.globalLookup(argName.idname);
+		if (id == null)
+		{
+			id = new SymbolInfo(argName.idname, new Kinds(Kinds.ScalarParm), argType.type, false);
+
+			argType.checkTypes();
+			argName.checkTypes();
+
+			try
+			{
+				st.insert(id);
+			}
+			catch (DuplicateException d)
+			{
+				throw new RuntimeException(
+						"DuplicateException was thrown by st.insert, this \"can't happen\"");
+			}
+			catch (EmptySTException e)
+			{
+				throw new RuntimeException(
+						"EmptySTException was thrown by st.insert, this \"can't happen\"");
+			}
+
+			argName.idinfo = id;
+		}
+		else
+		{
+			System.out.println(error() + id.name() + " is already declared.");
+			typeErrors++;
+			argName.type = new Types(Types.Error);
+		} // id != null
 	}
 } // class valArgDeclNode
 
@@ -1098,7 +1223,7 @@ class asgNode extends stmtNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.localLookup(target.varName.idname);
+		SymbolInfo id = (SymbolInfo)st.globalLookup(target.varName.idname);
 		
 		assertTrue(id != null, error() + "ID " + target.varName.idname + 
 				" was referenced but was not yet declared.");
@@ -1706,7 +1831,6 @@ abstract class exprNode extends ASTNode
 	static nullExprNode NULL = new nullExprNode();
 	protected Types type; // Used for typechecking: the type of this node
 	protected Kinds kind; // Used for typechecking: the kind of this node
-	protected int size;
 }
 
 class nullExprNode extends exprNode
@@ -1944,7 +2068,7 @@ class identNode extends exprNode
 
 		// TODO: Is this correct?
 		assertTrue(kind.val == Kinds.Var, "In CSX-lite all IDs should be vars");
-		id = (SymbolInfo) st.localLookup(idname);
+		id = (SymbolInfo) st.globalLookup(idname);
 
 		if (id == null) {
 			System.out.println(error() + idname + " is not declared.");
@@ -1967,7 +2091,7 @@ class nameNode extends exprNode
 	{
 		super(line, col);
 		varName = id;
-		subscriptVal = expr;
+		indexExpr = expr;
 	}
 
 	void Unparse(int indent)
@@ -1978,11 +2102,16 @@ class nameNode extends exprNode
 	void checkTypes()
 	{
        varName.checkTypes();
-       subscriptVal.checkTypes();
+       indexExpr.checkTypes();
+	}
+	
+	boolean isIndexed()
+	{
+		return !(indexExpr instanceof nullExprNode);
 	}
 
 	public final identNode varName;
-	private final exprNode subscriptVal;
+	private final exprNode indexExpr;
 } // class nameNode
 
 class intLitNode extends exprNode
@@ -2001,10 +2130,9 @@ class intLitNode extends exprNode
 	void checkTypes()
 	{
 		// All int lits are automatically type-correct
-		size = intval;
 	}
 
-	private final int intval;
+	public final int intval;
 } // class intLitNode
 
 class floatLitNode extends exprNode
@@ -2104,7 +2232,7 @@ class preIncrStmtNode extends stmtNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.localLookup(targetID.varName.idname);
+		SymbolInfo id = (SymbolInfo)st.globalLookup(targetID.varName.idname);
 
 		intLitNode dec = new intLitNode( 1, targetID.linenum, targetID.colnum);
 
@@ -2143,7 +2271,7 @@ class postIncrStmtNode extends stmtNode
 	
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.localLookup(targetID.varName.idname);
+		SymbolInfo id = (SymbolInfo)st.globalLookup(targetID.varName.idname);
 
 		intLitNode dec = new intLitNode( 1, targetID.linenum, targetID.colnum);
 
@@ -2180,7 +2308,7 @@ class preDecStmtNode extends stmtNode
 
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.localLookup(targetID.varName.idname);
+		SymbolInfo id = (SymbolInfo)st.globalLookup(targetID.varName.idname);
 
 		intLitNode dec = new intLitNode( -1, targetID.linenum, targetID.colnum);
 
@@ -2220,7 +2348,7 @@ class postDecStmtNode extends stmtNode
 	
 	void checkTypes()
 	{
-		SymbolInfo id = (SymbolInfo)st.localLookup(targetID.varName.idname);
+		SymbolInfo id = (SymbolInfo)st.globalLookup(targetID.varName.idname);
 
 		intLitNode dec = new intLitNode( -1, targetID.linenum, targetID.colnum);
 
