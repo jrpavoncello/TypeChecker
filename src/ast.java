@@ -1630,7 +1630,7 @@ class returnNode extends stmtNode
 
 	void checkTypes()
 	{
-		// will this need to work with function calls for recursion?
+		// TODO: check that the return type matches currentMethod's return type - this will need to work with recursion
 		returnVal.checkTypes();
 	}
 } // class returnNode
