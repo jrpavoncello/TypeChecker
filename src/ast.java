@@ -1247,8 +1247,6 @@ class whileNode extends stmtNode
 
 	void checkTypes()
 	{
-		
-		
 		condition.checkTypes();
 		assertTrue(condition.type.val == Types.Boolean, 
 				error() + "The control expression of a while loop must be a boolean.");
@@ -1295,9 +1293,14 @@ class forNode extends stmtNode
 
 	void checkTypes()
 	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+		assertTrue(condition.type.val == Types.Boolean, 
+				error() + "The control expression of a while loop must be a boolean.");
+		
+		loopVar.checkTypes();
+		initialization.checkTypes();
+		condition.checkTypes();
+		update.checkTypes();
+		loopBody.checkTypes();
 	}
 }
 
