@@ -463,7 +463,7 @@ class varDeclNode extends declNode
 	{
 		SymbolInfo id;
 		// Make sure id is not already declared
-		id = (SymbolInfo) st.globalLookup(varName.idname);
+		id = (SymbolInfo) st.localLookup(varName.idname);
 		if (id == null)
 		{
 			id = new SymbolInfo(varName.idname, new Kinds(Kinds.Var), varType.type, false);
@@ -533,7 +533,7 @@ class constDeclNode extends declNode
 		// Get any errors even if the name is already declared
 		constValue.checkTypes();
 		
-		SymbolInfo info = (SymbolInfo)st.globalLookup(constName.idname);
+		SymbolInfo info = (SymbolInfo)st.localLookup(constName.idname);
 		
 		if (info == null)
 		{
@@ -595,7 +595,7 @@ class arrayDeclNode extends declNode
 
 	void checkTypes()
 	{
-		SymbolInfo info = (SymbolInfo)st.globalLookup(arrayName.idname);
+		SymbolInfo info = (SymbolInfo)st.localLookup(arrayName.idname);
 		
 		if (info == null)
 		{
@@ -1001,7 +1001,7 @@ class arrayArgDeclNode extends argDeclNode
 
 	void checkTypes()
 	{
-		SymbolInfo info = (SymbolInfo)st.globalLookup(arrayName.idname);
+		SymbolInfo info = (SymbolInfo)st.localLookup(arrayName.idname);
 		
 		if (info == null)
 		{
@@ -1060,7 +1060,7 @@ class valArgDeclNode extends argDeclNode
 	{
 		SymbolInfo info;
 		// Make sure id is not already declared
-		info = (SymbolInfo) st.globalLookup(argName.idname);
+		info = (SymbolInfo) st.localLookup(argName.idname);
 		if (info == null)
 		{
 			info = new SymbolInfo(argName.idname, new Kinds(Kinds.ScalarParm), argType.type, false);
@@ -1366,7 +1366,8 @@ class whileNode extends stmtNode
 		// Don't print the line number or indent on a block node since the first
 		// thing it does
 		// is print the linenum, indent, and LBRACE
-		if (!(loopBody instanceof blockNode)) {
+		if (!(loopBody instanceof blockNode))
+		{
 			System.out.print(loopBody.linenum + ":");
 			genIndent(indent + 1);
 		}
@@ -1376,17 +1377,43 @@ class whileNode extends stmtNode
 
 	void checkTypes()
 	{
-		//TODO: Type check the label and add it as visible to the current scope, Kind=Label
+		label.checkTypes();
+		
+		identNode labelAsIdent = null;
+		
+		LabelSymbolInfo labelInfo = null;
+		
+		// Will be identNode if it's defined
+		if(label instanceof identNode)
+		{
+			labelAsIdent = (identNode)label;
+			
+			SymbolInfo info = (SymbolInfo)st.localLookup(labelAsIdent.idname);
+		
+			assertTrue(info == null, "Label: " + labelAsIdent.idname + " was already defined in this scope.");
+			
+			if(info == null)
+			{
+				labelInfo = new LabelSymbolInfo(labelAsIdent.idname, Kinds.Label, Types.Void, true);
+			}
+		}
+		
 		condition.checkTypes();
+		
 		assertTrue(condition.type.val == Types.Boolean, 
 				error() + "The control expression of a while loop must be a boolean.");
+		
 		loopBody.checkTypes();
+		
+		if(labelInfo != null)
+		{
+			labelInfo.Visible = false;
+		}
 	}
 } // class whileNode
 
 class forNode extends stmtNode
 {
-
 	forNode(identNode id, exprNode inita, exprNode e, stmtNode u, stmtNode s,
 			int line, int col)
 	{
@@ -1727,8 +1754,14 @@ class continueNode extends stmtNode
 
 	void checkTypes()
 	{
-		//TODO: Make sure the label exists in scope, is actually of kind label, and is visible
-		label.checkTypes();
+		SymbolInfo info = (LabelSymbolInfo)st.localLookup(label.idname);
+		
+		if(info != null)
+		{
+			LabelSymbolInfo labelInfo = (LabelSymbolInfo)info;
+			
+			assertTrue(labelInfo.Visible, "Label: " + label.idname + " is no longer visible.");
+		}
 	}
 } // class continueNode
 
@@ -2071,21 +2104,8 @@ class identNode extends exprNode
 
 	void checkTypes()
 	{
-		SymbolInfo id;
-
-		// TODO: Is this correct?
-		assertTrue(kind.val == Kinds.Var, "In CSX-lite all IDs should be vars");
-		id = (SymbolInfo) st.globalLookup(idname);
-
-		if (id == null) {
-			System.out.println(error() + idname + " is not declared.");
-			typeErrors++;
-			type = new Types(Types.Error);
-		} else {
-			type = id.type;
-			idinfo = id; // Save ptr to correct symbol table entry
-		}
-	} // checkTypes
+		// identNode is always type correct
+	}
 
 	public String idname;
 	public SymbolInfo idinfo; // symbol table entry for this ident
