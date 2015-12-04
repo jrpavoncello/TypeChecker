@@ -531,34 +531,14 @@ class arrayDeclNode extends declNode {
 } // class arrayDeclNode
 
 abstract class typeNode extends ASTNode {
-	// abstract superclass; only subclasses are actually created
-	typeNode() {
-		super();
-	}
-
 	typeNode(int l, int c, Types t) {
 		super(l, c);
 		type = t;
 	}
 
-	static nullTypeNode NULL = new nullTypeNode();
-
 	// Used for typechecking -- the type of this typeNode
 	Types type;
 } // class typeNode
-
-class nullTypeNode extends typeNode {
-	nullTypeNode() {
-	}
-
-	boolean isNull() {
-		return true;
-	}
-
-	void checkTypes() {
-		// No type checking needed
-	}
-} // class nullTypeNode
 
 class intTypeNode extends typeNode {
 	intTypeNode(int line, int col) {
@@ -1457,9 +1437,15 @@ class breakNode extends stmtNode {
 	}
 
 	void checkTypes() {
-		// TODO: Make sure the label exists in scope, is actually of kind label,
-		// and is visible
 		label.checkTypes();
+		
+		SymbolInfo info = (LabelSymbolInfo) st.localLookup(label.idname);
+
+		if (info != null) {
+			LabelSymbolInfo labelInfo = (LabelSymbolInfo) info;
+
+			assertTrue(labelInfo.Visible, "Label: " + label.idname + " is no longer visible.");
+		}
 	}
 } // class breakNode
 
@@ -1479,6 +1465,8 @@ class continueNode extends stmtNode {
 	}
 
 	void checkTypes() {
+		label.checkTypes();
+		
 		SymbolInfo info = (LabelSymbolInfo) st.localLookup(label.idname);
 
 		if (info != null) {
