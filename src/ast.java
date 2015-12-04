@@ -1,3 +1,4 @@
+
 abstract class ASTNode {
 
 	int linenum;
@@ -412,9 +413,11 @@ class varDeclNode extends declNode {
 			varName.checkTypes();
 			rhsExpr.checkTypes();
 
-			// Make sure that there's no type mismatch between typeNode and
-			// initValue
-			assertAssignmentCompatible(id, rhsExpr, error() + "LHS and RHS are not compatible for assignment");
+			if(!(rhsExpr instanceof nullExprNode)){
+				// Make sure that there's no type mismatch between typeNode and
+				// initValue
+				assertAssignmentCompatible(id, rhsExpr, error() + "LHS and RHS are not compatible for assignment");
+			}
 
 			try {
 				st.insert(id);
@@ -644,6 +647,21 @@ class methodDeclsNode extends ASTNode {
 
 	void checkTypes() {
 		thisDecl.checkTypes();
+		
+		if(moreDecls instanceof nullMethodDeclsNode)
+		{
+			boolean isMainMethod = thisDecl.info.name().equals("main");
+			
+			assertTrue(isMainMethod, 
+					error() + "Last method declaration must be the main method");
+			
+			if(isMainMethod)
+			{
+				assertTrue(thisDecl.info.type.val == Types.Void, 
+						error() + "main method must have return type of VOID.");
+			}
+		}
+		
 		moreDecls.checkTypes();
 	}
 } // class methodDeclsNode
@@ -683,7 +701,7 @@ class methodDeclNode extends ASTNode {
 	private final fieldDeclsNode decls;
 	private final stmtsNode stmts;
 	private int closingLineNum;
-	public final MethodSymbolInfo info;
+	public MethodSymbolInfo info;
 
 	// Print like:
 	// type id(args){
@@ -709,7 +727,8 @@ class methodDeclNode extends ASTNode {
 	void checkTypes() {
 		SymbolInfo info = (SymbolInfo) st.localLookup(name.idname);
 
-		assertTrue(info == null, error() + "ID " + name.idname + " was already declared.");
+		assertTrue(info == null, 
+				error() + "ID " + name.idname + " was already declared.");
 
 		if (info == null) {
 			MethodSymbolInfo methodInfo = new MethodSymbolInfo(name.idname, returnType.type);
@@ -731,6 +750,8 @@ class methodDeclNode extends ASTNode {
 			decls.checkTypes();
 
 			stmts.checkTypes();
+			
+			this.info = methodInfo;
 		}
 	}
 } // class methodDeclNode
@@ -996,9 +1017,9 @@ class asgNode extends stmtNode {
 	}
 
 	void checkTypes() {
+		target.checkTypes();
+		
 		SymbolInfo info = (SymbolInfo) st.globalLookup(target.varName.idname);
-
-		assertTrue(info != null, error() + "ID " + target.varName.idname + " was referenced but was not yet declared.");
 
 		if (info != null) {
 			source.checkTypes();
@@ -1143,7 +1164,7 @@ class whileNode extends stmtNode {
 
 			SymbolInfo info = (SymbolInfo) st.localLookup(labelAsIdent.idname);
 
-			assertTrue(info == null, "Label: " + labelAsIdent.idname + " was already defined in this scope.");
+			assertTrue(info != null, "Label: " + labelAsIdent.idname + " was already defined in this scope.");
 
 			if (info == null) {
 				labelInfo = new LabelSymbolInfo(labelAsIdent.idname, Kinds.Label, Types.Void, true);
@@ -1196,12 +1217,13 @@ class forNode extends stmtNode {
 	}
 
 	void checkTypes() {
-		assertTrue(condition.type.val == Types.Boolean,
-				error() + "The control expression of a while loop must be a boolean.");
-
 		loopVar.checkTypes();
 		initialization.checkTypes();
 		condition.checkTypes();
+		
+		assertTrue(condition.type.val == Types.Boolean,
+				error() + "The control expression of a for loop must be a boolean.");
+		
 		update.checkTypes();
 		loopBody.checkTypes();
 	}
@@ -1250,6 +1272,11 @@ class readNode extends stmtNode {
 
 	void checkTypes() {
 		targetVar.checkTypes();
+		
+		assertTrue((targetVar.type.val == Types.Integer || targetVar.type.val == Types.Character) &&
+						(targetVar.kind.val == Kinds.Var || targetVar.kind.val == Kinds.ScalarParm), 
+						"Only integer or character variables or scalar parameters are allowed to be read into.");
+		
 		moreReads.checkTypes();
 	}
 } // class readNode
@@ -1314,8 +1341,28 @@ class printNode extends stmtNode {
 
 	void checkTypes() {
 		outputValue.checkTypes();
-		// TODO: Is this right?
-		assertTrue(outputValue.type.val == Types.Integer, error() + "Only int values may be printed.");
+		assertTrue(
+				(
+					(outputValue.type.val == Types.Boolean || 
+						outputValue.type.val == Types.Character || 
+						outputValue.type.val == Types.Integer || 
+						outputValue.type.val == Types.Real ||
+						outputValue.type.val == Types.String) 
+					&&
+						(outputValue.kind.val == Kinds.Value || 
+						outputValue.kind.val == Kinds.Var || 
+						outputValue.kind.val == Kinds.ScalarParm)
+				)
+				||
+				(
+					(outputValue.kind.val == Kinds.Array || 
+						outputValue.kind.val == Kinds.ArrayParm) && 
+					outputValue.type.val == Types.Character
+				)
+				, error() + 
+				"The following are valid for printing: INT, BOOL, REAL, " +
+				"CHAR, and STRING variables, values, and scalar parameters." +
+				" CHAR arrays and array parameters.");
 	}
 } // class printNode
 
@@ -1473,7 +1520,7 @@ class continueNode extends stmtNode {
 		if (info != null) {
 			LabelSymbolInfo labelInfo = (LabelSymbolInfo) info;
 
-			assertTrue(labelInfo.Visible, "Label: " + label.idname + " is no longer visible.");
+			assertTrue(labelInfo.Visible, error() + "Label: " + label.idname + " is no longer visible.");
 		}
 	}
 } // class continueNode
@@ -1648,13 +1695,33 @@ class binaryOpNode extends exprNode {
 		case sym.NOTEQ:
 			returnType = assertArithmeticCompatible(leftOperand.kind.val, leftOperand.type.val, rightOperand.kind.val,
 					rightOperand.type.val,
-					"Left and right operand are not compatible for operator: " + getOpString(operatorCode));
+					error() + "Left and right operand are not compatible for operator: " + getOpString(operatorCode));
+			
+			if(returnType != Types.Unknown && returnType != Types.Error)
+			{
+				switch (operatorCode) {
+					case sym.LT:
+					case sym.GT:
+					case sym.LEQ:
+					case sym.GEQ:
+					case sym.EQ:
+					case sym.NOTEQ:
+						returnType = Types.Boolean;
+					break;
+				}
+			}
 			break;
 		case sym.CAND:
 		case sym.COR:
-			returnType = assertBooleanCompatible(leftOperand.kind.val, leftOperand.type.val, rightOperand.kind.val,
-					rightOperand.type.val, "Left and right operands of the operator: " + getOpString(operatorCode)
-							+ " requires both sides to be of type boolean.");
+			returnType = assertBooleanCompatible(
+					leftOperand.kind.val,
+					leftOperand.type.val,
+					rightOperand.kind.val,
+					rightOperand.type.val,
+					error() + 
+						"Left and right operands of the operator: " + 
+						getOpString(operatorCode) + 
+						" requires both sides to be of type boolean.");
 			break;
 		}
 
@@ -1685,9 +1752,18 @@ class unaryOpNode extends exprNode {
 		operand.checkTypes();
 
 		if (operatorCode == sym.NOT) {
-			// it's a not operator
+			assertTrue(operand.type.val == Types.Boolean && 
+					(operand.kind.val == Kinds.ScalarParm || operand.kind.val == Kinds.Value || operand.kind.val == Kinds.Var)
+					, error() + "NOT operator requires a boolean operand.");
+			
+			kind = new Kinds(Kinds.Value);
+			type = new Types(Types.Boolean);
+			
 		} else if (operatorCode == sym.IDENTIFIER) {
 			// it's used to hold an id
+			
+			kind = operand.kind;
+			type = operand.type;
 		} else {
 			// invalid unary operator
 			throw new UnsupportedOperationException(
@@ -1720,16 +1796,21 @@ class castNode extends exprNode {
 		// of type int, char or bool may be type-cast to an int, char, float or
 		// bool value.
 		// These are the only type casts allowed.
-		if (resultType.type.val != (Types.Real | Types.Character | Types.Integer | Types.Boolean)) {
-			throw new Error("can only cast to float, char , int and bool");
-		}
+		assertTrue(resultType.type.val == Types.Real || 
+				resultType.type.val == Types.Character || 
+				resultType.type.val == Types.Integer || 
+				resultType.type.val == Types.Boolean, 
+				error() + "Only valid casts are to FLOAT, CHAR, INT, and BOOL.");
 
-		if ((operand.type.val != (Types.Character | Types.Integer | Types.Boolean))
-				| (operand.type.val == Types.Real)) {
-			throw new Error("can only cast from char , int and bool");
-		}
+		assertTrue(operand.type.val == Types.Character || 
+				operand.type.val == Types.Integer || 
+				operand.type.val == Types.Boolean, 
+				error() + "Only source types to cast from are CHAR, INT, and BOOL.");
 
 		operand.checkTypes();
+		
+		type = resultType.type;
+		kind = new Kinds(Kinds.Value);
 	}
 
 	private final exprNode operand;
@@ -1781,7 +1862,7 @@ class fctCallNode extends exprNode {
 							((methodInfo.kind.val == Kinds.ArrayParm && 
 								(whatever.kind.val == Kinds.ArrayParm || 
 									whatever.kind.val == Kinds.Array))))
-						), error() + "method call parameters did not match the method signature.");
+						), error() + "Method call parameters did not match the method signature.");
 
 					argN = argN.moreArgs;
 					if ((argN instanceof nullArgsNode) && (i < methodInfo.Arguments.size() - 1)) {
@@ -1849,8 +1930,30 @@ class nameNode extends exprNode {
 	}
 
 	void checkTypes() {
+		
 		varName.checkTypes();
 		indexExpr.checkTypes();
+
+		SymbolInfo info = (SymbolInfo)st.globalLookup(varName.idname);
+		
+		assertTrue(info != null,
+				error() + "ID " + varName.idname + " was referenced but was not yet declared.");
+		
+		if(info != null)
+		{
+			if(isIndexed())
+			{
+				kind = new Kinds(Kinds.Var);
+			}
+			else
+			{
+				kind = info.kind;
+			}
+			
+			type = info.type;
+			
+			varName.idinfo = info;
+		}
 	}
 
 	boolean isIndexed() {
@@ -1955,19 +2058,15 @@ class preIncrStmtNode extends stmtNode {
 	}
 
 	void checkTypes() {
+		targetID.checkTypes();
+		
 		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
-		intLitNode dec = new intLitNode(1, targetID.linenum, targetID.colnum);
-
-		binaryOpNode biOp = new binaryOpNode(dec, sym.PLUS, targetID.varName, targetID.linenum, targetID.colnum);
-
-		assertTrue(info != null,
-				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
-
 		if (info != null) {
-			// Make sure
-			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
-					error() + "The value you are trying to Increment is invalid");
+			assertTrue(
+				info.type.val == Types.Integer &&
+					(info.kind.val == Kinds.ScalarParm || info.kind.val == Kinds.Var), 
+				error() + "Increment statements can only be applied to parameter or variable integers");
 		}
 	}
 
@@ -1987,18 +2086,15 @@ class postIncrStmtNode extends stmtNode {
 	}
 
 	void checkTypes() {
+		targetID.checkTypes();
+		
 		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
-		intLitNode dec = new intLitNode(1, targetID.linenum, targetID.colnum);
-
-		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
-
-		assertTrue(info != null,
-				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
-
 		if (info != null) {
-			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
-					error() + "The value you are trying to Increment is invalid");
+			assertTrue(
+				info.type.val == Types.Integer &&
+					(info.kind.val == Kinds.ScalarParm || info.kind.val == Kinds.Var), 
+				error() + "Increment statements can only be applied to parameter or variable integers");
 		}
 	}
 
@@ -2018,19 +2114,15 @@ class preDecStmtNode extends stmtNode {
 	}
 
 	void checkTypes() {
+		targetID.checkTypes();
+		
 		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
-		intLitNode dec = new intLitNode(-1, targetID.linenum, targetID.colnum);
-
-		binaryOpNode biOp = new binaryOpNode(dec, sym.PLUS, targetID.varName, targetID.linenum, targetID.colnum);
-
-		assertTrue(info != null,
-				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
-
 		if (info != null) {
-			// Make sure
-			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
-					error() + "The value you are trying to decrement is invalid");
+			assertTrue(
+				info.type.val == Types.Integer &&
+					(info.kind.val == Kinds.ScalarParm || info.kind.val == Kinds.Var), 
+				error() + "Decrement statements can only be applied to parameter or variable integers");
 		}
 	}
 
@@ -2050,19 +2142,15 @@ class postDecStmtNode extends stmtNode {
 	}
 
 	void checkTypes() {
+		targetID.checkTypes();
+		
 		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
-		intLitNode dec = new intLitNode(-1, targetID.linenum, targetID.colnum);
-
-		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
-
-		assertTrue(info != null,
-				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
-
 		if (info != null) {
-			// Make sure
-			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
-					error() + "The value you are trying to decrement is invalid");
+			assertTrue(
+				info.type.val == Types.Integer &&
+					(info.kind.val == Kinds.ScalarParm || info.kind.val == Kinds.Var), 
+				error() + "Decrement statements can only be applied to parameter or variable integers");
 		}
 	}
 

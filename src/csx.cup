@@ -110,6 +110,15 @@ methoddecl		::= void:v ident:id LPAREN RPAREN LBRACE fielddecls:fDecls stmts:s R
 				{:
 					RESULT = new methodDeclNode(id, aDecls, v, fDecls, s, v.linenum, v.colnum, rb.linenum);
 				:}
+				|
+				void:v ident:id LPAREN RPAREN LBRACE fielddecls:fDecls RBRACE:rb optionalsemi
+				{:
+					RESULT = new methodDeclNode(id, argDeclsNode.NULL, v, fDecls, stmtsNode.NULL, v.linenum, v.colnum, rb.linenum);
+				:}
+				| void:v ident:id LPAREN argdecls:aDecls RPAREN LBRACE fielddecls:fDecls RBRACE:rb optionalsemi
+				{:
+					RESULT = new methodDeclNode(id, aDecls, v, fDecls, stmtsNode.NULL, v.linenum, v.colnum, rb.linenum);
+				:}
 				| type:t ident:id LPAREN RPAREN LBRACE fielddecls:fDecls stmts:s RBRACE:rb optionalsemi
 				{:
 					RESULT = new methodDeclNode(id, argDeclsNode.NULL, t, fDecls, s, t.linenum, t.colnum, rb.linenum);
@@ -230,6 +239,10 @@ stmt			::= rw_IF:i LPAREN expr:e RPAREN stmt:s rw_ENDIF:endif
 				{:
 					RESULT = new blockNode(fDecls, s, lb.linenum, lb.colnum, rb.linenum);
 				:}
+				| LBRACE:lb fielddecls:fDecls RBRACE:rb optionalsemi
+				{:
+					RESULT = new blockNode(fDecls, stmtsNode.NULL, lb.linenum, lb.colnum, rb.linenum);
+				:}
 				| rw_FOR:f LPAREN ident:id ASG expr:initExpr SEMI expr:condExpr SEMI update:upExpr RPAREN stmt:s
 				{:
 					RESULT = new forNode(id, initExpr, condExpr, upExpr, s, f.linenum, f.colnum);
@@ -309,79 +322,79 @@ printlist		::= expr:e COMMA printlist:p
 			
 expr			::= expr:l COR term:r
 				{:
-					RESULT = new binaryOpNode(l, 27, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.COR, r, l.linenum, l.colnum);
 				:}
 				| expr:l CAND term:r
 				{:
-					RESULT = new binaryOpNode(l, 38, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.CAND, r, l.linenum, l.colnum);
 				:}
-				| term:l /* */ 
+				| term:l
 				{:
-					RESULT = new unaryOpNode(44, l, l.linenum, l.colnum);
+					RESULT = l;
 				:}
 			;
 			
 term			::= factor:l LT factor:r
 				{:
-					RESULT = new binaryOpNode(l, 18, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.LT, r, l.linenum, l.colnum);
 				:}
 				| factor:l GT factor:r
 				{:
-					RESULT = new binaryOpNode(l, 42, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.GT, r, l.linenum, l.colnum);
 				:}
 				| factor:l LEQ factor:r
 				{:
-					RESULT = new binaryOpNode(l, 39, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.LEQ, r, l.linenum, l.colnum);
 				:}
 				| factor:l GEQ factor:r
 				{:
-					RESULT = new binaryOpNode(l, 23, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.GEQ, r, l.linenum, l.colnum);
 				:}
 				| factor:l EQ factor:r
 				{:
-					RESULT = new binaryOpNode(l, 30, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.EQ, r, l.linenum, l.colnum);
 				:}
 				| factor:l NOTEQ factor:r
 				{:
-					RESULT = new binaryOpNode(l, 43, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.NOTEQ, r, l.linenum, l.colnum);
 				:}				
 				| factor:l
 				{:
-					RESULT = new unaryOpNode(44, l, l.linenum, l.colnum);
+					RESULT = l;
 				:}
 			;
 			
 factor			::= factor:l PLUS pri:r
 				{:
-					RESULT = new binaryOpNode(l, 47, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.PLUS, r, l.linenum, l.colnum);
 				:}
 				| factor:l MINUS pri:r
 				{:
-					RESULT = new binaryOpNode(l, 48, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.MINUS, r, l.linenum, l.colnum);
 				:}
 				| pri:l
 				{:
-					RESULT = new unaryOpNode(44, l, l.linenum, l.colnum);
+					RESULT = l;
 				:}
 			;
 
 pri				::= pri:l TIMES unary:r
 				{:
-					RESULT = new binaryOpNode(l, 46, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.TIMES, r, l.linenum, l.colnum);
 				:}
 				| pri:l SLASH unary:r
 				{:
-					RESULT = new binaryOpNode(l, 45, r, l.linenum, l.colnum);
+					RESULT = new binaryOpNode(l, sym.SLASH, r, l.linenum, l.colnum);
 				:}
 				| unary:l
 				{:
-					RESULT = new unaryOpNode(44, l,  l.linenum, l.colnum);
+					RESULT = l;
 				:}
 			;
 			
 unary			::= NOT:opp unary:u
 				{:
-					RESULT = new unaryOpNode(15, u, u.linenum, u.colnum);
+					RESULT = new unaryOpNode(sym.NOT, u, u.linenum, u.colnum);
 				:}
 				| LPAREN:l type:t RPAREN unary:u
 				{:
@@ -389,7 +402,7 @@ unary			::= NOT:opp unary:u
 				:}
 				| unit:l
 				{:
-					RESULT = new unaryOpNode(44, l, l.linenum, l.colnum);
+					RESULT = l;
 				:}
 			;
 			
@@ -441,7 +454,7 @@ unit			::= name:id
 				:}
 				| LPAREN:l expr:e RPAREN
 				{:
-					RESULT = new unaryOpNode(44, e, l.linenum, l.colnum);
+					RESULT = e;
 				:}
 			;
 			
