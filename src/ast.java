@@ -32,13 +32,14 @@ abstract class ASTNode {
 	static void assertAssignmentCompatible(SymbolInfo info, exprNode expression, String errorMsg) {
 		// Don't print a type incompatible error message when the test type is
 		// of type Error
+		
 		if (expression.type.val != Types.Error) {
 			boolean compatible = false;
 
 			// Can't assign to a constant
 			if (!info.constant) {
 				// Start checking for array assignment compatibility
-
+				
 				// RHS can only be name node we are assigning an array
 				if (expression instanceof nameNode) {
 					nameNode name = (nameNode) expression;
@@ -414,6 +415,7 @@ class varDeclNode extends declNode {
 
 			// Make sure that there's no type mismatch between typeNode and
 			// initValue
+			
 			assertAssignmentCompatible(id, rhsExpr, error() + "LHS and RHS are not compatible for assignment");
 
 			try {
@@ -1249,6 +1251,7 @@ class readNode extends stmtNode {
 	}
 
 	void checkTypes() {
+		
 		targetVar.checkTypes();
 		moreReads.checkTypes();
 	}
@@ -1966,6 +1969,9 @@ class preIncrStmtNode extends stmtNode {
 
 		if (info != null) {
 			// Make sure
+			assertTrue((info.type.val != Types.Integer) && (info.kind.val != Kinds.Var),
+					error() + "ID " + targetID.varName.idname + " is not an integer variable");
+
 			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
 					error() + "The value you are trying to Increment is invalid");
 		}
@@ -1997,6 +2003,9 @@ class postIncrStmtNode extends stmtNode {
 				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
 
 		if (info != null) {
+			assertTrue((info.type.val != Types.Integer) && (info.kind.val != Kinds.Var),
+					error() + "ID " + targetID.varName.idname + " is not an integer variable");
+
 			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
 					error() + "The value you are trying to Increment is invalid");
 		}
@@ -2029,6 +2038,9 @@ class preDecStmtNode extends stmtNode {
 
 		if (info != null) {
 			// Make sure
+			assertTrue((info.type.val != Types.Integer) && (info.kind.val != Kinds.Var),
+					error() + "ID " + targetID.varName.idname + " is not an integer variable");
+
 			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
 					error() + "The value you are trying to decrement is invalid");
 		}
@@ -2055,16 +2067,23 @@ class postDecStmtNode extends stmtNode {
 		intLitNode dec = new intLitNode(-1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
-
+		
 		assertTrue(info != null,
 				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
 
 		if (info != null) {
-			// Make sure
+			
+			assertTrue((info.type.val != Types.Integer) && (info.kind.val != Kinds.Var),
+					error() + "ID " + targetID.varName.idname + " is not an integer variable");
+
+			
 			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
-					error() + "The value you are trying to decrement is invalid");
+				error() + "The value you are trying to decrement is invalid");
+		
+			
 		}
 	}
+	
 
 	private nameNode targetID;
 } // class postDecStmtNode
