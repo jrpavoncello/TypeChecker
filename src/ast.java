@@ -1863,10 +1863,8 @@ class nameNode extends exprNode {
 
 class intLitNode extends exprNode {
 	intLitNode(int val, int line, int col) {
-		super(line, col);
+		super(line, col, new Types(Types.Integer), new Kinds(Kinds.Value));
 		intval = val;
-		type.val = Types.Integer;
-		kind.val = Kinds.Value;
 	}
 
 	void Unparse(int indent) {
@@ -1882,10 +1880,8 @@ class intLitNode extends exprNode {
 
 class floatLitNode extends exprNode {
 	floatLitNode(float val, int line, int col) {
-		super(line, col);
+		super(line, col, new Types(Types.Real), new Kinds(Kinds.Value));
 		floatval = val;
-		type.val = Types.Real;
-		kind.val = Kinds.Value;
 	}
 
 	void Unparse(int indent) {
@@ -1901,10 +1897,8 @@ class floatLitNode extends exprNode {
 
 class charLitNode extends exprNode {
 	charLitNode(char val, int line, int col) {
-		super(line, col);
+		super(line, col, new Types(Types.Character), new Kinds(Kinds.Value));
 		charval = val;
-		type.val = Types.Character;
-		kind.val = Kinds.Value;
 	}
 
 	void Unparse(int indent) {
@@ -1921,10 +1915,7 @@ class charLitNode extends exprNode {
 
 class trueNode extends exprNode {
 	trueNode(int line, int col) {
-		super(line, col);
-		type.val = Types.Boolean;
-		kind.val = Kinds.Value;
-
+		super(line, col, new Types(Types.Boolean), new Kinds(Kinds.Value));
 	}
 
 	void Unparse(int indent) {
@@ -1938,9 +1929,7 @@ class trueNode extends exprNode {
 
 class falseNode extends exprNode {
 	falseNode(int line, int col) {
-		super(line, col);
-		type.val = Types.Boolean;
-		kind.val = Kinds.Value;
+		super(line, col, new Types(Types.Boolean), new Kinds(Kinds.Value));
 	}
 
 	void Unparse(int indent) {
