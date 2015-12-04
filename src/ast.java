@@ -409,6 +409,7 @@ class varDeclNode extends declNode {
 			id = new SymbolInfo(varName.idname, new Kinds(Kinds.Var), varType.type, false);
 
 			// Type check the expression
+			varName.checkTypes();
 			rhsExpr.checkTypes();
 
 			// Make sure that there's no type mismatch between typeNode and
@@ -1864,6 +1865,8 @@ class intLitNode extends exprNode {
 	intLitNode(int val, int line, int col) {
 		super(line, col);
 		intval = val;
+		type.val = Types.Integer;
+		kind.val = Kinds.Value;
 	}
 
 	void Unparse(int indent) {
@@ -1881,6 +1884,8 @@ class floatLitNode extends exprNode {
 	floatLitNode(float val, int line, int col) {
 		super(line, col);
 		floatval = val;
+		type.val = Types.Real;
+		kind.val = Kinds.Value;
 	}
 
 	void Unparse(int indent) {
@@ -1898,6 +1903,8 @@ class charLitNode extends exprNode {
 	charLitNode(char val, int line, int col) {
 		super(line, col);
 		charval = val;
+		type.val = Types.Character;
+		kind.val = Kinds.Value;
 	}
 
 	void Unparse(int indent) {
@@ -1915,6 +1922,9 @@ class charLitNode extends exprNode {
 class trueNode extends exprNode {
 	trueNode(int line, int col) {
 		super(line, col);
+		type.val = Types.Boolean;
+		kind.val = Kinds.Value;
+
 	}
 
 	void Unparse(int indent) {
@@ -1929,6 +1939,8 @@ class trueNode extends exprNode {
 class falseNode extends exprNode {
 	falseNode(int line, int col) {
 		super(line, col);
+		type.val = Types.Boolean;
+		kind.val = Kinds.Value;
 	}
 
 	void Unparse(int indent) {
