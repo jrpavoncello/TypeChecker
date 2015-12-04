@@ -1,5 +1,4 @@
-abstract class ASTNode
-{
+abstract class ASTNode {
 
 	int linenum;
 	int colnum;
@@ -7,216 +6,195 @@ abstract class ASTNode
 	static int typeErrors = 0; // Total number of type errors found
 	static methodDeclNode currentMethod = null;
 
-	static void genIndent(int indent)
-	{
+	static void genIndent(int indent) {
 		for (int i = 1; i <= indent; i++) {
 			System.out.print("\t");
 		}
 	} // genIndent
 
-	static void assertTrue(boolean assertion, String errorMsg)
-	{
+	static void assertTrue(boolean assertion, String errorMsg) {
 		if (!assertion) {
-			throw new RuntimeException(errorMsg);
+			System.out.println(errorMsg);
+			typeErrors++;
 		}
 	} // mustBe
-	
-	static boolean isCharacterArrayOrString(int type, int kind)
-	{
-		return ((kind == Kinds.Array || kind == Kinds.ArrayParm) && type == Types.Character) ||
-				   ((kind == Kinds.Var || kind == Kinds.ScalarParm) && type == Types.String);
-	}
-	
-	static boolean areBothMatchingTypeArrays(int lhsType, int lhsKind, int rhsType, int rhsKind)
-	{
-		return (lhsKind == Kinds.Array || lhsKind == Kinds.ArrayParm) && (rhsKind == Kinds.Array || rhsKind == Kinds.ArrayParm) && lhsType == rhsType;
+
+	static boolean isCharacterArrayOrString(int type, int kind) {
+		return ((kind == Kinds.Array || kind == Kinds.ArrayParm) && type == Types.Character)
+				|| ((kind == Kinds.Var || kind == Kinds.ScalarParm) && type == Types.String);
 	}
 
-	static void assertAssignmentCompatible(SymbolInfo info, exprNode expression, String errorMsg)
-	{
-		// Don't print a type incompatible error message when the test type is of type Error
-		if (expression.type.val != Types.Error)
-		{
+	static boolean areBothMatchingTypeArrays(int lhsType, int lhsKind, int rhsType, int rhsKind) {
+		return (lhsKind == Kinds.Array || lhsKind == Kinds.ArrayParm)
+				&& (rhsKind == Kinds.Array || rhsKind == Kinds.ArrayParm) && lhsType == rhsType;
+	}
+
+	static void assertAssignmentCompatible(SymbolInfo info, exprNode expression, String errorMsg) {
+		// Don't print a type incompatible error message when the test type is
+		// of type Error
+		if (expression.type.val != Types.Error) {
 			boolean compatible = false;
-			
+
 			// Can't assign to a constant
-			if(!info.constant)
-			{
+			if (!info.constant) {
 				// Start checking for array assignment compatibility
-				
+
 				// RHS can only be name node we are assigning an array
-				if(expression instanceof nameNode)
-				{
-					nameNode name = (nameNode)expression;
-					
-					// Make sure that the name node is not an array being indexed
-					if(!name.isIndexed())
-					{
+				if (expression instanceof nameNode) {
+					nameNode name = (nameNode) expression;
+
+					// Make sure that the name node is not an array being
+					// indexed
+					if (!name.isIndexed()) {
 						SizedSymbolInfo lhsInfo = null;
 						SizedSymbolInfo rhsInfo = null;
-						
-						boolean areTypeCompatibleArrays = areBothMatchingTypeArrays(info.type.val, info.kind.val, name.type.val, name.kind.val);
-						
-						// If the LHS is a character array or string, excluding string literals and constant character arrays
-						// or we already know both sides are type and kind compatible
-						if(isCharacterArrayOrString(info.type.val, info.kind.val) || areTypeCompatibleArrays)
-						{
-							if(info instanceof SizedSymbolInfo)
-							{
-								lhsInfo = (SizedSymbolInfo)info;
+
+						boolean areTypeCompatibleArrays = areBothMatchingTypeArrays(info.type.val, info.kind.val,
+								name.type.val, name.kind.val);
+
+						// If the LHS is a character array or string, excluding
+						// string literals and constant character arrays
+						// or we already know both sides are type and kind
+						// compatible
+						if (isCharacterArrayOrString(info.type.val, info.kind.val) || areTypeCompatibleArrays) {
+							if (info instanceof SizedSymbolInfo) {
+								lhsInfo = (SizedSymbolInfo) info;
 							}
 						}
-						
-						// If the RHS is a character array or string, including string literals
-						// or we already know both sides are type and kind compatible
-						if(isCharacterArrayOrString(name.type.val, name.kind.val) || areTypeCompatibleArrays)
-						{
-							if(name.varName.idinfo instanceof SizedSymbolInfo)
-							{
-								rhsInfo = (SizedSymbolInfo)name.varName.idinfo;
+
+						// If the RHS is a character array or string, including
+						// string literals
+						// or we already know both sides are type and kind
+						// compatible
+						if (isCharacterArrayOrString(name.type.val, name.kind.val) || areTypeCompatibleArrays) {
+							if (name.varName.idinfo instanceof SizedSymbolInfo) {
+								rhsInfo = (SizedSymbolInfo) name.varName.idinfo;
 							}
 						}
-						
-						// If we've gotten both the LHS and RHS infos, indicating type and kind compatibility
-						if(lhsInfo != null && rhsInfo != null)
-						{
-							//Size must be equal unless either the LHS or RHS are method args, then we can't enforce the array size
-							if(lhsInfo.Size == rhsInfo.Size || info.kind.val == Kinds.ArrayParm || name.kind.val == Kinds.ArrayParm)
-							{
+
+						// If we've gotten both the LHS and RHS infos,
+						// indicating type and kind compatibility
+						if (lhsInfo != null && rhsInfo != null) {
+							// Size must be equal unless either the LHS or RHS
+							// are method args, then we can't enforce the array
+							// size
+							if (lhsInfo.Size == rhsInfo.Size || info.kind.val == Kinds.ArrayParm
+									|| name.kind.val == Kinds.ArrayParm) {
 								compatible = true;
 							}
 						}
 					}
 				}
-					
+
 				// If no edge case determined the LHS and RHS were compatible
-				if(!compatible)
-				{
+				if (!compatible) {
 					// Check that the kinds are compatible
-					if(((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm) && 
-							(expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm)) ||
-						((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm) && 
-							(expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm || expression.kind.val == Kinds.Value)))
-					{
+					if (((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm)
+							&& (expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm))
+							|| ((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm)
+									&& (expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm
+											|| expression.kind.val == Kinds.Value))) {
 						// Check that the types are exactly equivalent
-						if(info.type.val == expression.type.val)
-						{
+						if (info.type.val == expression.type.val) {
 							compatible = true;
 						}
 					}
 				}
 			}
-			
-			if(!compatible)
-			{
+
+			if (!compatible) {
 				System.out.println(errorMsg);
 				typeErrors++;
 			}
 		}
 	}
 
-	static int assertArithmeticCompatible(int lhsKind, int lhsType, int rhsKind, int rhsType, String errorMsg)
-	{
+	static int assertArithmeticCompatible(int lhsKind, int lhsType, int rhsKind, int rhsType, String errorMsg) {
 		int returnType = Types.Unknown;
-		
+
 		// Don't print a type incompatible error message when the test type is
 		// of type Error, and also make sure the RHS actually returns something
-		switch(rhsType)
-		{
-			case Types.Character:
-			case Types.Integer:
-			case Types.Real:
-				boolean compatible = false;
-				
-				// Make sure the kinds are compatible
-				if((lhsKind == Kinds.Var || lhsKind == Kinds.ScalarParm || lhsKind == Kinds.Value) && 
-						(rhsKind == Kinds.Var || rhsKind == Kinds.ScalarParm || rhsKind == Kinds.Value))
-				{
-					//If the two types are either character or integer but are not the same
-					//this will return an integer
-					if((rhsType == Types.Character || rhsType == Types.Integer) &&
-							(lhsType == Types.Character || lhsType == Types.Integer) &&
-							lhsType != rhsType)
-					{
-						returnType = Types.Integer;
-						compatible = true;
-					}
-					
-					//If the types match exactly
-					if(lhsType == rhsType)
-					{
-						returnType = rhsType;
-						compatible = true;
-					}
+		switch (rhsType) {
+		case Types.Character:
+		case Types.Integer:
+		case Types.Real:
+			boolean compatible = false;
+
+			// Make sure the kinds are compatible
+			if ((lhsKind == Kinds.Var || lhsKind == Kinds.ScalarParm || lhsKind == Kinds.Value)
+					&& (rhsKind == Kinds.Var || rhsKind == Kinds.ScalarParm || rhsKind == Kinds.Value)) {
+				// If the two types are either character or integer but are not
+				// the same
+				// this will return an integer
+				if ((rhsType == Types.Character || rhsType == Types.Integer)
+						&& (lhsType == Types.Character || lhsType == Types.Integer) && lhsType != rhsType) {
+					returnType = Types.Integer;
+					compatible = true;
 				}
-				
-				if(!compatible)
-				{
-					System.out.println(errorMsg);
-					typeErrors++;
+
+				// If the types match exactly
+				if (lhsType == rhsType) {
+					returnType = rhsType;
+					compatible = true;
 				}
+			}
+
+			if (!compatible) {
+				System.out.println(errorMsg);
+				typeErrors++;
+			}
 			break;
 		}
-		
+
 		return returnType;
 	}
-	
-	static int assertBooleanCompatible(int lhsKind, int lhsType, int rhsKind, int rhsType, String errorMsg)
-	{
-		if(lhsType == Types.Boolean && rhsType == Types.Boolean && 
-				(lhsKind == Kinds.Var || lhsKind == Kinds.ScalarParm || lhsKind == Kinds.Value) && 
-				(rhsKind == Kinds.Var || rhsKind == Kinds.ScalarParm || rhsKind == Kinds.Value))
-		{
+
+	static int assertBooleanCompatible(int lhsKind, int lhsType, int rhsKind, int rhsType, String errorMsg) {
+		if (lhsType == Types.Boolean && rhsType == Types.Boolean
+				&& (lhsKind == Kinds.Var || lhsKind == Kinds.ScalarParm || lhsKind == Kinds.Value)
+				&& (rhsKind == Kinds.Var || rhsKind == Kinds.ScalarParm || rhsKind == Kinds.Value)) {
 			return Types.Boolean;
 		}
 
 		System.out.println(errorMsg);
 		typeErrors++;
-		
+
 		return Types.Error;
 	}
 
-	String error()
-	{
+	String error() {
 		return "Error (line " + linenum + "): ";
 	} // error
 
 	// We will run any character through this in order to escape any special
 	// characters.
-	String escapeCharacters(char c)
-	{
+	String escapeCharacters(char c) {
 		return escapeCharacters(c);
 	}
 
 	// We will run any string or character through this in order to escape any
 	// special characters.
-	String escapeCharacters(String toEscape)
-	{
-		return toEscape.replaceAll("\t", "\\t").replaceAll("\r", "\\r")
-				.replaceAll("\n", "\\n");
+	String escapeCharacters(String toEscape) {
+		return toEscape.replaceAll("\t", "\\t").replaceAll("\r", "\\r").replaceAll("\n", "\\n");
 	}
 
 	public static SymbolTable st = new SymbolTable();
 
-	ASTNode()
-	{
+	ASTNode() {
 		linenum = -1;
 		colnum = -1;
 	}
 
-	ASTNode(int l, int c)
-	{
+	ASTNode(int l, int c) {
 		linenum = l;
 		colnum = c;
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return false;
 	} // Is this node null?
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
 
 	// Explicitly make children implement this to not miss anything by mistake
@@ -225,56 +203,46 @@ abstract class ASTNode
 	// This will normally need to be redefined in a subclass
 } // abstract class ASTNode
 
-class nullNode extends ASTNode
-{
+class nullNode extends ASTNode {
 	// This class definition probably doesn't need to be changed
-	nullNode()
-	{
+	nullNode() {
 		super();
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		// no action
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// Null nodes are type correct by default (optional semi)
 	}
 } // class nullNode
 
-class csxLiteNode extends ASTNode
-{
+class csxLiteNode extends ASTNode {
 
-	csxLiteNode(fieldDeclsNode decls, stmtsNode stmts, int line, int col)
-	{
+	csxLiteNode(fieldDeclsNode decls, stmtsNode stmts, int line, int col) {
 		super(line, col);
 		fields = decls;
 		progStmts = stmts;
 	} // csxLiteNode
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.println(linenum + ":" + " {");
 		fields.Unparse(1);
 		progStmts.Unparse(1);
 		System.out.println(linenum + ":" + " } EOF");
 	} // Unparse
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		fields.checkTypes();
 		progStmts.checkTypes();
 	} // checkTypes
 
-	boolean isTypeCorrect()
-	{
+	boolean isTypeCorrect() {
 		st.openScope();
 		checkTypes();
 		return (typeErrors == 0);
@@ -284,11 +252,8 @@ class csxLiteNode extends ASTNode
 	private final fieldDeclsNode fields;
 } // class csxLiteNode
 
-class classNode extends ASTNode
-{
-	classNode(identNode id, memberDeclsNode memb, int line, int col,
-			int closingLine)
-	{
+class classNode extends ASTNode {
+	classNode(identNode id, memberDeclsNode memb, int line, int col, int closingLine) {
 		super(line, col);
 		className = id;
 		members = memb;
@@ -299,14 +264,12 @@ class classNode extends ASTNode
 	private final memberDeclsNode members;
 	private int closingLineNum;
 
-	boolean isTypeCorrect()
-	{
+	boolean isTypeCorrect() {
 		checkTypes();
 		return (typeErrors == 0);
 	} // isTypeCorrect
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		// Print like:
 		// ##: class name {
 		// members.Unparse
@@ -324,17 +287,14 @@ class classNode extends ASTNode
 		System.out.println("} EOF");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		st.openScope();
 		members.checkTypes();
 	}
 } // class classNode
 
-class memberDeclsNode extends ASTNode
-{
-	memberDeclsNode(fieldDeclsNode f, methodDeclsNode m, int line, int col)
-	{
+class memberDeclsNode extends ASTNode {
+	memberDeclsNode(fieldDeclsNode f, methodDeclsNode m, int line, int col) {
 		super(line, col);
 		fields = f;
 		methods = m;
@@ -346,28 +306,23 @@ class memberDeclsNode extends ASTNode
 	// Print like:
 	// fields.Unparse
 	// methods.Unparse
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		fields.Unparse(indent);
 		methods.Unparse(indent);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		fields.checkTypes();
 		methods.checkTypes();
 	}
 } // class memberDeclsNode
 
-class fieldDeclsNode extends ASTNode
-{
-	fieldDeclsNode()
-	{
+class fieldDeclsNode extends ASTNode {
+	fieldDeclsNode() {
 		super();
 	}
 
-	fieldDeclsNode(declNode d, fieldDeclsNode f, int line, int col)
-	{
+	fieldDeclsNode(declNode d, fieldDeclsNode f, int line, int col) {
 		super(line, col);
 		thisField = d;
 		moreFields = f;
@@ -383,58 +338,46 @@ class fieldDeclsNode extends ASTNode
 	// nextField
 	// ...
 	// lastField
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		thisField.Unparse(indent);
 		moreFields.Unparse(indent);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		thisField.checkTypes();
 		moreFields.checkTypes();
 	}
 } // class fieldDeclsNode
 
-class nullFieldDeclsNode extends fieldDeclsNode
-{
-	nullFieldDeclsNode()
-	{
+class nullFieldDeclsNode extends fieldDeclsNode {
+	nullFieldDeclsNode() {
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type checking necessary
 	}
 } // class nullFieldDeclsNode
 
 // abstract superclass; only subclasses are actually created
-abstract class declNode extends ASTNode
-{
-	declNode()
-	{
+abstract class declNode extends ASTNode {
+	declNode() {
 		super();
 	}
 
-	declNode(int l, int c)
-	{
+	declNode(int l, int c) {
 		super(l, c);
 	}
 } // class declNode
 
-class varDeclNode extends declNode
-{
-	varDeclNode(identNode id, typeNode t, exprNode e, int line, int col)
-	{
+class varDeclNode extends declNode {
+	varDeclNode(identNode id, typeNode t, exprNode e, int line, int col) {
 		super(line, col);
 		varName = id;
 		varType = t;
@@ -447,8 +390,7 @@ class varDeclNode extends declNode
 
 	// Print like:
 	// ##: type id = expression;
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(linenum + ": ");
 		genIndent(indent);
 		varType.Unparse(0);
@@ -459,13 +401,11 @@ class varDeclNode extends declNode
 		System.out.println(";");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		SymbolInfo id;
 		// Make sure id is not already declared
 		id = (SymbolInfo) st.localLookup(varName.idname);
-		if (id == null)
-		{
+		if (id == null) {
 			id = new SymbolInfo(varName.idname, new Kinds(Kinds.Var), varType.type, false);
 
 			// Type check the expression
@@ -473,29 +413,18 @@ class varDeclNode extends declNode
 
 			// Make sure that there's no type mismatch between typeNode and
 			// initValue
-			assertAssignmentCompatible(id, rhsExpr, 
-					error()
-					+ "LHS and RHS are not compatible for assignment");
+			assertAssignmentCompatible(id, rhsExpr, error() + "LHS and RHS are not compatible for assignment");
 
-			try
-			{
+			try {
 				st.insert(id);
-			}
-			catch (DuplicateException d)
-			{
-				throw new RuntimeException(
-						"DuplicateException was thrown by st.insert, this \"can't happen\"");
-			}
-			catch (EmptySTException e)
-			{
-				throw new RuntimeException(
-						"EmptySTException was thrown by st.insert, this \"can't happen\"");
+			} catch (DuplicateException d) {
+				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
+			} catch (EmptySTException e) {
+				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
 
 			varName.idinfo = id;
-		}
-		else
-		{
+		} else {
 			System.out.println(error() + id.name() + " is already declared.");
 			typeErrors++;
 			varName.type = new Types(Types.Error);
@@ -504,10 +433,8 @@ class varDeclNode extends declNode
 
 } // class varDeclNode
 
-class constDeclNode extends declNode
-{
-	constDeclNode(identNode id, exprNode e, int line, int col)
-	{
+class constDeclNode extends declNode {
+	constDeclNode(identNode id, exprNode e, int line, int col) {
 		super(line, col);
 		constName = id;
 		constValue = e;
@@ -518,8 +445,7 @@ class constDeclNode extends declNode
 
 	// Print like:
 	// ##: id = expression;
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(linenum + ": ");
 		genIndent(indent);
 		constName.Unparse(0);
@@ -528,36 +454,25 @@ class constDeclNode extends declNode
 		System.out.println(";");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// Get any errors even if the name is already declared
 		constValue.checkTypes();
-		
-		SymbolInfo info = (SymbolInfo)st.localLookup(constName.idname);
-		
-		if (info == null)
-		{
+
+		SymbolInfo info = (SymbolInfo) st.localLookup(constName.idname);
+
+		if (info == null) {
 			info = new SymbolInfo(constName.idname, constValue.kind, constValue.type, true);
 
-			try
-			{
+			try {
 				st.insert(info);
+			} catch (DuplicateException d) {
+				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
+			} catch (EmptySTException e) {
+				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
-			catch (DuplicateException d)
-			{
-				throw new RuntimeException(
-						"DuplicateException was thrown by st.insert, this \"can't happen\"");
-			}
-			catch (EmptySTException e)
-			{
-				throw new RuntimeException(
-						"EmptySTException was thrown by st.insert, this \"can't happen\"");
-			}
-			
+
 			constName.idinfo = info;
-		}
-		else
-		{
+		} else {
 			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			constName.type = new Types(Types.Error);
@@ -565,10 +480,8 @@ class constDeclNode extends declNode
 	}
 } // class constDeclNode
 
-class arrayDeclNode extends declNode
-{
-	arrayDeclNode(identNode id, typeNode t, intLitNode lit, int line, int col)
-	{
+class arrayDeclNode extends declNode {
+	arrayDeclNode(identNode id, typeNode t, intLitNode lit, int line, int col) {
 		super(line, col);
 		arrayName = id;
 		elementType = t;
@@ -581,8 +494,7 @@ class arrayDeclNode extends declNode
 
 	// Print like:
 	// ##: type id[intlit];
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(linenum + ": ");
 		genIndent(indent);
 		elementType.Unparse(0);
@@ -593,35 +505,24 @@ class arrayDeclNode extends declNode
 		System.out.println("];");
 	}
 
-	void checkTypes()
-	{
-		SymbolInfo info = (SymbolInfo)st.localLookup(arrayName.idname);
-		
-		if (info == null)
-		{
+	void checkTypes() {
+		SymbolInfo info = (SymbolInfo) st.localLookup(arrayName.idname);
+
+		if (info == null) {
 			arraySize.checkTypes();
-			
+
 			info = new SizedSymbolInfo(arrayName.idname, Kinds.Array, elementType.type.val, arraySize.intval, false);
 
-			try
-			{
+			try {
 				st.insert(info);
+			} catch (DuplicateException d) {
+				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
+			} catch (EmptySTException e) {
+				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
-			catch (DuplicateException d)
-			{
-				throw new RuntimeException(
-					"DuplicateException was thrown by st.insert, this \"can't happen\"");
-			}
-			catch (EmptySTException e)
-			{
-				throw new RuntimeException(
-					"EmptySTException was thrown by st.insert, this \"can't happen\"");
-			}
-			
+
 			arrayName.idinfo = info;
-		}
-		else
-		{
+		} else {
 			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			elementType.type = new Types(Types.Error);
@@ -629,16 +530,13 @@ class arrayDeclNode extends declNode
 	}
 } // class arrayDeclNode
 
-abstract class typeNode extends ASTNode
-{
+abstract class typeNode extends ASTNode {
 	// abstract superclass; only subclasses are actually created
-	typeNode()
-	{
+	typeNode() {
 		super();
 	}
 
-	typeNode(int l, int c, Types t)
-	{
+	typeNode(int l, int c, Types t) {
 		super(l, c);
 		type = t;
 	}
@@ -649,127 +547,100 @@ abstract class typeNode extends ASTNode
 	Types type;
 } // class typeNode
 
-class nullTypeNode extends typeNode
-{
-	nullTypeNode()
-	{
+class nullTypeNode extends typeNode {
+	nullTypeNode() {
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type checking needed
 	}
 } // class nullTypeNode
 
-class intTypeNode extends typeNode
-{
-	intTypeNode(int line, int col)
-	{
+class intTypeNode extends typeNode {
+	intTypeNode(int line, int col) {
 		super(line, col, new Types(Types.Integer));
 	}
 
 	// Just print the data type INT
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("INT");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type checking needed
 	}
 } // class intTypeNode
 
-class floatTypeNode extends typeNode
-{
-	floatTypeNode(int line, int col)
-	{
+class floatTypeNode extends typeNode {
+	floatTypeNode(int line, int col) {
 		super(line, col, new Types(Types.Real));
 	}
 
 	// Just print the data type FLOAT
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("FLOAT");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type checking needed
 	}
 } // class floatTypeNode
 
-class boolTypeNode extends typeNode
-{
-	boolTypeNode(int line, int col)
-	{
+class boolTypeNode extends typeNode {
+	boolTypeNode(int line, int col) {
 		super(line, col, new Types(Types.Boolean));
 	}
 
 	// Just print the data type BOOL
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("BOOL");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type checking needed
 	}
 } // class boolTypeNode
 
-class charTypeNode extends typeNode
-{
-	charTypeNode(int line, int col)
-	{
+class charTypeNode extends typeNode {
+	charTypeNode(int line, int col) {
 		super(line, col, new Types(Types.Character));
 	}
 
 	// Just print the data type CHAR
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("CHAR");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type checking needed
 	}
 } // class charTypeNode
 
-class voidTypeNode extends typeNode
-{
-	voidTypeNode(int line, int col)
-	{
+class voidTypeNode extends typeNode {
+	voidTypeNode(int line, int col) {
 		super(line, col, new Types(Types.Void));
 	}
 
 	// Just print the data type VOID
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("VOID");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type checking needed
 	}
 } // class voidTypeNode
 
-class methodDeclsNode extends ASTNode
-{
-	methodDeclsNode()
-	{
+class methodDeclsNode extends ASTNode {
+	methodDeclsNode() {
 		super();
 	}
 
-	methodDeclsNode(methodDeclNode m, methodDeclsNode ms, int line, int col)
-	{
+	methodDeclsNode(methodDeclNode m, methodDeclsNode ms, int line, int col) {
 		super(line, col);
 		thisDecl = m;
 		moreDecls = ms;
@@ -785,45 +656,36 @@ class methodDeclsNode extends ASTNode
 	// nextDeclaration
 	// ...
 	// lastDeclaration
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		thisDecl.Unparse(indent);
 		moreDecls.Unparse(indent);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		thisDecl.checkTypes();
 		moreDecls.checkTypes();
 	}
 } // class methodDeclsNode
 
-class nullMethodDeclsNode extends methodDeclsNode
-{
-	nullMethodDeclsNode()
-	{
+class nullMethodDeclsNode extends methodDeclsNode {
+	nullMethodDeclsNode() {
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
-	
-	void checkTypes()
-	{
-		// Don't type check null 
+
+	void checkTypes() {
+		// Don't type check null
 	}
 } // class nullMethodDeclsNode
 
-class methodDeclNode extends ASTNode
-{
-	methodDeclNode(identNode id, argDeclsNode a, typeNode t, fieldDeclsNode f,
-			stmtsNode s, int line, int col, int closingLine)
-	{
+class methodDeclNode extends ASTNode {
+	methodDeclNode(identNode id, argDeclsNode a, typeNode t, fieldDeclsNode f, stmtsNode s, int line, int col,
+			int closingLine) {
 		super(line, col);
 		name = id;
 		args = a;
@@ -847,8 +709,7 @@ class methodDeclNode extends ASTNode
 	// fieldDeclarations
 	// statements
 	// }
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(linenum + ": ");
 		genIndent(indent);
 		returnType.Unparse(0);
@@ -864,67 +725,51 @@ class methodDeclNode extends ASTNode
 		System.out.println("}");
 	}
 
-	void checkTypes()
-	{
-		SymbolInfo info = (SymbolInfo)st.localLookup(name.idname);
-		
-		assertTrue(info == null, error() + "ID " + name.idname + 
-				" was already declared.");
-		
-		if(info == null)
-		{
+	void checkTypes() {
+		SymbolInfo info = (SymbolInfo) st.localLookup(name.idname);
+
+		assertTrue(info == null, error() + "ID " + name.idname + " was already declared.");
+
+		if (info == null) {
 			MethodSymbolInfo methodInfo = new MethodSymbolInfo(name.idname, returnType.type);
 
-			try
-			{
+			try {
 				st.insert(methodInfo);
+			} catch (DuplicateException d) {
+				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
+			} catch (EmptySTException e) {
+				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
-			catch (DuplicateException d)
-			{
-				throw new RuntimeException(
-						"DuplicateException was thrown by st.insert, this \"can't happen\"");
-			}
-			catch (EmptySTException e)
-			{
-				throw new RuntimeException(
-						"EmptySTException was thrown by st.insert, this \"can't happen\"");
-			}
-			
+
 			currentMethod = this;
 
 			st.openScope();
-			
+
 			args.checkTypes();
-			
+
 			decls.checkTypes();
-			
+
 			stmts.checkTypes();
 		}
 	}
 } // class methodDeclNode
 
 // abstract superclass; only subclasses are actually created
-abstract class argDeclNode extends ASTNode
-{
-	argDeclNode()
-	{
+abstract class argDeclNode extends ASTNode {
+	argDeclNode() {
 		super();
 	}
 
-	argDeclNode(int l, int c)
-	{
+	argDeclNode(int l, int c) {
 		super(l, c);
 	}
 }
 
-class argDeclsNode extends ASTNode
-{
-	argDeclsNode()
-	{
+class argDeclsNode extends ASTNode {
+	argDeclsNode() {
 	}
 
-	argDeclsNode(argDeclNode arg, argDeclsNode args, int line, int col)
-	{
+	argDeclsNode(argDeclNode arg, argDeclsNode args, int line, int col) {
 		super(line, col);
 		thisDecl = arg;
 		moreDecls = args;
@@ -937,8 +782,7 @@ class argDeclsNode extends ASTNode
 
 	// Print like:
 	// thisArgDecl, nextArgDecl, nextArgDecl, ... , lastArgDecl
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		thisDecl.Unparse(0);
 
 		// Make sure we're not at the end of the decls list
@@ -949,38 +793,30 @@ class argDeclsNode extends ASTNode
 		moreDecls.Unparse(0);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		thisDecl.checkTypes();
 		moreDecls.checkTypes();
 	}
 } // class argDeclsNode
 
-class nullArgDeclsNode extends argDeclsNode
-{
-	nullArgDeclsNode()
-	{
+class nullArgDeclsNode extends argDeclsNode {
+	nullArgDeclsNode() {
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// Don't need to type check a null node
 	}
 } // class nullArgDeclsNode
 
-class arrayArgDeclNode extends argDeclNode
-{
-	arrayArgDeclNode(identNode id, typeNode t, int line, int col)
-	{
+class arrayArgDeclNode extends argDeclNode {
+	arrayArgDeclNode(identNode id, typeNode t, int line, int col) {
 		super(line, col);
 		arrayName = id;
 		elementType = t;
@@ -991,43 +827,31 @@ class arrayArgDeclNode extends argDeclNode
 
 	// Print like:
 	// type id[]
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		elementType.Unparse(0);
 		System.out.print(" ");
 		arrayName.Unparse(0);
 		System.out.print("[]");
 	}
 
-	void checkTypes()
-	{
-		SymbolInfo info = (SymbolInfo)st.localLookup(arrayName.idname);
-		
-		if (info == null)
-		{
+	void checkTypes() {
+		SymbolInfo info = (SymbolInfo) st.localLookup(arrayName.idname);
+
+		if (info == null) {
 			info = new SizedSymbolInfo(arrayName.idname, Kinds.ArrayParm, elementType.type.val, 0, false);
 
-			try
-			{
+			try {
 				st.insert(info);
+			} catch (DuplicateException d) {
+				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
+			} catch (EmptySTException e) {
+				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
-			catch (DuplicateException d)
-			{
-				throw new RuntimeException(
-					"DuplicateException was thrown by st.insert, this \"can't happen\"");
-			}
-			catch (EmptySTException e)
-			{
-				throw new RuntimeException(
-					"EmptySTException was thrown by st.insert, this \"can't happen\"");
-			}
-			
+
 			arrayName.idinfo = info;
-			
+
 			currentMethod.info.Arguments.add(info);
-		}
-		else
-		{
+		} else {
 			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			elementType.type = new Types(Types.Error);
@@ -1035,10 +859,8 @@ class arrayArgDeclNode extends argDeclNode
 	}
 } // class arrayArgDeclNode
 
-class valArgDeclNode extends argDeclNode
-{
-	valArgDeclNode(identNode id, typeNode t, int line, int col)
-	{
+class valArgDeclNode extends argDeclNode {
+	valArgDeclNode(identNode id, typeNode t, int line, int col) {
 		super(line, col);
 		argName = id;
 		argType = t;
@@ -1049,46 +871,34 @@ class valArgDeclNode extends argDeclNode
 
 	// Print like:
 	// type id
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		argType.Unparse(0);
 		System.out.print(" ");
 		argName.Unparse(0);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		SymbolInfo info;
 		// Make sure id is not already declared
 		info = (SymbolInfo) st.localLookup(argName.idname);
-		if (info == null)
-		{
+		if (info == null) {
 			info = new SymbolInfo(argName.idname, new Kinds(Kinds.ScalarParm), argType.type, false);
 
 			argType.checkTypes();
 			argName.checkTypes();
 
-			try
-			{
+			try {
 				st.insert(info);
-			}
-			catch (DuplicateException d)
-			{
-				throw new RuntimeException(
-						"DuplicateException was thrown by st.insert, this \"can't happen\"");
-			}
-			catch (EmptySTException e)
-			{
-				throw new RuntimeException(
-						"EmptySTException was thrown by st.insert, this \"can't happen\"");
+			} catch (DuplicateException d) {
+				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
+			} catch (EmptySTException e) {
+				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
 
 			argName.idinfo = info;
-			
+
 			currentMethod.info.Arguments.add(info);
-		}
-		else
-		{
+		} else {
 			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			argName.type = new Types(Types.Error);
@@ -1097,53 +907,42 @@ class valArgDeclNode extends argDeclNode
 } // class valArgDeclNode
 
 // abstract superclass; only subclasses are actually created
-abstract class stmtNode extends ASTNode
-{
-	stmtNode()
-	{
+abstract class stmtNode extends ASTNode {
+	stmtNode() {
 		super();
 	}
 
-	stmtNode(int l, int c)
-	{
+	stmtNode(int l, int c) {
 		super(l, c);
 	}
 
 	static nullStmtNode NULL = new nullStmtNode();
 }
 
-class nullStmtNode extends stmtNode
-{
-	nullStmtNode()
-	{
+class nullStmtNode extends stmtNode {
+	nullStmtNode() {
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// Do nothing, we don't need to type check a null node
 	}
 } // class nullStmtNode
 
-class stmtsNode extends ASTNode
-{
-	stmtsNode(stmtNode stmt, stmtsNode stmts, int line, int col)
-	{
+class stmtsNode extends ASTNode {
+	stmtsNode(stmtNode stmt, stmtsNode stmts, int line, int col) {
 		super(line, col);
 		thisStmt = stmt;
 		moreStmts = stmts;
 	}
 
-	stmtsNode()
-	{
+	stmtsNode() {
 	}
 
 	// Print like:
@@ -1152,8 +951,7 @@ class stmtsNode extends ASTNode
 	// nextStmt
 	// ...
 	// lastStmt
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		// Don't print the line number or indent on a block node since the first
 		// thing it does
 		// is print the linenum, indent, and LBRACE
@@ -1175,8 +973,7 @@ class stmtsNode extends ASTNode
 		moreStmts.Unparse(indent);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		thisStmt.checkTypes();
 		moreStmts.checkTypes();
 	}
@@ -1186,31 +983,24 @@ class stmtsNode extends ASTNode
 	private stmtsNode moreStmts;
 } // class stmtsNode
 
-class nullStmtsNode extends stmtsNode
-{
-	nullStmtsNode()
-	{
+class nullStmtsNode extends stmtsNode {
+	nullStmtsNode() {
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type check needed
 	}
 } // class nullStmtsNode
 
-class asgNode extends stmtNode
-{
-	asgNode(nameNode n, exprNode e, int line, int col)
-	{
+class asgNode extends stmtNode {
+	asgNode(nameNode n, exprNode e, int line, int col) {
 		super(line, col);
 		target = n;
 		source = e;
@@ -1218,30 +1008,23 @@ class asgNode extends stmtNode
 
 	// Print like:
 	// ##: type id = expression;
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		target.Unparse(0);
 		System.out.print(" = ");
 		source.Unparse(0);
 	}
 
-	void checkTypes()
-	{
-		SymbolInfo info = (SymbolInfo)st.globalLookup(target.varName.idname);
-		
-		assertTrue(info != null, error() + "ID " + target.varName.idname + 
-				" was referenced but was not yet declared.");
-		
-		if(info != null)
-		{
+	void checkTypes() {
+		SymbolInfo info = (SymbolInfo) st.globalLookup(target.varName.idname);
+
+		assertTrue(info != null, error() + "ID " + target.varName.idname + " was referenced but was not yet declared.");
+
+		if (info != null) {
 			source.checkTypes();
-	
+
 			// Make sure
-			assertAssignmentCompatible(target.varName.idinfo, source, 
-					error()
-					+ "Both the left and right"
-					+ " hand sides of an assignment must "
-					+ "have compatible types.");
+			assertAssignmentCompatible(target.varName.idinfo, source, error() + "Both the left and right"
+					+ " hand sides of an assignment must " + "have compatible types.");
 		}
 	}
 
@@ -1249,11 +1032,8 @@ class asgNode extends stmtNode
 	private final exprNode source;
 } // class asgNode
 
-class ifThenNode extends stmtNode
-{
-	ifThenNode(exprNode e, stmtNode s1, stmtNode s2, int line, int col,
-			int endifLineNum)
-	{
+class ifThenNode extends stmtNode {
+	ifThenNode(exprNode e, stmtNode s1, stmtNode s2, int line, int col, int endifLineNum) {
 		super(line, col);
 		condition = e;
 		thenPart = s1;
@@ -1272,8 +1052,7 @@ class ifThenNode extends stmtNode
 	// ##: else
 	// stmt
 	// ##: endif
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("if (");
 		condition.Unparse(0);
 		System.out.println(")");
@@ -1328,10 +1107,9 @@ class ifThenNode extends stmtNode
 		System.out.print("endif");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		condition.checkTypes();
-		assertTrue(condition.type.val == Types.Boolean, 
+		assertTrue(condition.type.val == Types.Boolean,
 				error() + "The control expression of an if statement must be a boolean.");
 		thenPart.checkTypes();
 		elsePart.checkTypes();
@@ -1339,10 +1117,8 @@ class ifThenNode extends stmtNode
 
 } // class ifThenNode
 
-class whileNode extends stmtNode
-{
-	whileNode(exprNode i, exprNode e, stmtNode s, int line, int col)
-	{
+class whileNode extends stmtNode {
+	whileNode(exprNode i, exprNode e, stmtNode s, int line, int col) {
 		super(line, col);
 		label = i;
 		condition = e;
@@ -1356,8 +1132,7 @@ class whileNode extends stmtNode
 	// Print like:
 	// ##: label:while(expression)
 	// stmt
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		label.Unparse(0);
 		System.out.print(" : while (");
 		condition.Unparse(0);
@@ -1366,8 +1141,7 @@ class whileNode extends stmtNode
 		// Don't print the line number or indent on a block node since the first
 		// thing it does
 		// is print the linenum, indent, and LBRACE
-		if (!(loopBody instanceof blockNode))
-		{
+		if (!(loopBody instanceof blockNode)) {
 			System.out.print(loopBody.linenum + ":");
 			genIndent(indent + 1);
 		}
@@ -1375,48 +1149,41 @@ class whileNode extends stmtNode
 		loopBody.Unparse(indent + 1);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		label.checkTypes();
-		
+
 		identNode labelAsIdent = null;
-		
+
 		LabelSymbolInfo labelInfo = null;
-		
+
 		// Will be identNode if it's defined
-		if(label instanceof identNode)
-		{
-			labelAsIdent = (identNode)label;
-			
-			SymbolInfo info = (SymbolInfo)st.localLookup(labelAsIdent.idname);
-		
+		if (label instanceof identNode) {
+			labelAsIdent = (identNode) label;
+
+			SymbolInfo info = (SymbolInfo) st.localLookup(labelAsIdent.idname);
+
 			assertTrue(info == null, "Label: " + labelAsIdent.idname + " was already defined in this scope.");
-			
-			if(info == null)
-			{
+
+			if (info == null) {
 				labelInfo = new LabelSymbolInfo(labelAsIdent.idname, Kinds.Label, Types.Void, true);
 			}
 		}
-		
+
 		condition.checkTypes();
-		
-		assertTrue(condition.type.val == Types.Boolean, 
+
+		assertTrue(condition.type.val == Types.Boolean,
 				error() + "The control expression of a while loop must be a boolean.");
-		
+
 		loopBody.checkTypes();
-		
-		if(labelInfo != null)
-		{
+
+		if (labelInfo != null) {
 			labelInfo.Visible = false;
 		}
 	}
 } // class whileNode
 
-class forNode extends stmtNode
-{
-	forNode(identNode id, exprNode inita, exprNode e, stmtNode u, stmtNode s,
-			int line, int col)
-	{
+class forNode extends stmtNode {
+	forNode(identNode id, exprNode inita, exprNode e, stmtNode u, stmtNode s, int line, int col) {
 		super(line, col);
 		loopVar = id;
 		initialization = inita;
@@ -1434,8 +1201,7 @@ class forNode extends stmtNode
 	// Print like:
 	// ##: for (type id = expression; expression; assignment)
 	// stmt
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("for (");
 		loopVar.Unparse(0);
 		System.out.print(" = ");
@@ -1448,11 +1214,10 @@ class forNode extends stmtNode
 		loopBody.Unparse(indent + 1);
 	}
 
-	void checkTypes()
-	{
-		assertTrue(condition.type.val == Types.Boolean, 
+	void checkTypes() {
+		assertTrue(condition.type.val == Types.Boolean,
 				error() + "The control expression of a while loop must be a boolean.");
-		
+
 		loopVar.checkTypes();
 		initialization.checkTypes();
 		condition.checkTypes();
@@ -1461,14 +1226,11 @@ class forNode extends stmtNode
 	}
 }
 
-class readNode extends stmtNode
-{
-	readNode()
-	{
+class readNode extends stmtNode {
+	readNode() {
 	}
 
-	readNode(nameNode n, readNode rn, int line, int col)
-	{
+	readNode(nameNode n, readNode rn, int line, int col) {
 		super(line, col);
 		targetVar = n;
 		moreReads = rn;
@@ -1478,15 +1240,13 @@ class readNode extends stmtNode
 	private nameNode targetVar;
 	private readNode moreReads;
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		Unparse(indent, true);
 	}
 
 	// Print like:
 	// ##: READ (id1, id2, id3, ... , idN);
-	void Unparse(int indent, boolean rootCalled)
-	{
+	void Unparse(int indent, boolean rootCalled) {
 		// If it's the first node in the list, print the "READ (" part
 		if (rootCalled) {
 			System.out.print("READ (");
@@ -1507,38 +1267,30 @@ class readNode extends stmtNode
 		}
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		targetVar.checkTypes();
 		moreReads.checkTypes();
 	}
 } // class readNode
 
-class nullReadNode extends readNode
-{
-	nullReadNode()
-	{
+class nullReadNode extends readNode {
+	nullReadNode() {
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		// No type check needed
 	}
 } // class nullReadNode
 
-class printNode extends stmtNode
-{
-	printNode()
-	{
+class printNode extends stmtNode {
+	printNode() {
 	}
 
-	printNode(exprNode val, printNode pn, int line, int col)
-	{
+	printNode(exprNode val, printNode pn, int line, int col) {
 		super(line, col);
 		outputValue = val;
 		morePrints = pn;
@@ -1552,15 +1304,13 @@ class printNode extends stmtNode
 	// Use a helper method to unparse the print statement because
 	// the parser buids a linked list and we need to extra formatting
 	// for the first, last and in between nodes
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		Unparse(indent, true);
 	}
 
 	// Print like:
 	// PRINT (thisExpr, nextExpr, nextExpr, ... , lastExpr);
-	void Unparse(int indent, boolean rootCalled)
-	{
+	void Unparse(int indent, boolean rootCalled) {
 		// If it's the first node in the list, print the "PRINT (" part
 		if (rootCalled) {
 			System.out.print("PRINT (");
@@ -1581,40 +1331,31 @@ class printNode extends stmtNode
 		}
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		outputValue.checkTypes();
 		// TODO: Is this right?
-		assertTrue(outputValue.type.val == Types.Integer, 
-				error() + "Only int values may be printed.");
+		assertTrue(outputValue.type.val == Types.Integer, error() + "Only int values may be printed.");
 	}
 } // class printNode
 
-class nullPrintNode extends printNode
-{
-	nullPrintNode()
-	{
+class nullPrintNode extends printNode {
+	nullPrintNode() {
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type check needed
 	}
 } // class nullprintNode
 
-class callNode extends stmtNode
-{
-	callNode(identNode id, argsNode a, int line, int col)
-	{
+class callNode extends stmtNode {
+	callNode(identNode id, argsNode a, int line, int col) {
 		super(line, col);
 		methodName = id;
 		args = a;
@@ -1625,8 +1366,7 @@ class callNode extends stmtNode
 
 	// Print like:
 	// ##: id(args);
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		methodName.Unparse(0);
 		System.out.print(" (");
 
@@ -1635,17 +1375,14 @@ class callNode extends stmtNode
 		System.out.print(")");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		methodName.checkTypes();
 		args.checkTypes();
 	}
 } // class callNode
 
-class returnNode extends stmtNode
-{
-	returnNode(exprNode e, int line, int col)
-	{
+class returnNode extends stmtNode {
+	returnNode(exprNode e, int line, int col) {
 		super(line, col);
 		returnVal = e;
 	}
@@ -1654,24 +1391,21 @@ class returnNode extends stmtNode
 
 	// Print like:
 	// ##: return expression;
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("return ");
 
 		returnVal.Unparse(0);
 	}
 
-	void checkTypes()
-	{
-		// TODO: check that the return type matches currentMethod's return type - this will need to work with recursion
+	void checkTypes() {
+		// TODO: check that the return type matches currentMethod's return type
+		// - this will need to work with recursion
 		returnVal.checkTypes();
 	}
 } // class returnNode
 
-class blockNode extends stmtNode
-{
-	blockNode(fieldDeclsNode f, stmtsNode s, int line, int col, int closingLine)
-	{
+class blockNode extends stmtNode {
+	blockNode(fieldDeclsNode f, stmtsNode s, int line, int col, int closingLine) {
 		super(line, col);
 		decls = f;
 		stmts = s;
@@ -1687,8 +1421,7 @@ class blockNode extends stmtNode
 	// fieldDeclarations
 	// statements
 	// }
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(linenum + ":");
 		genIndent(indent);
 		System.out.println("{");
@@ -1702,17 +1435,14 @@ class blockNode extends stmtNode
 
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		decls.checkTypes();
 		stmts.checkTypes();
 	}
 } // class blockNode
 
-class breakNode extends stmtNode
-{
-	breakNode(identNode i, int line, int col)
-	{
+class breakNode extends stmtNode {
+	breakNode(identNode i, int line, int col) {
 		super(line, col);
 		label = i;
 	}
@@ -1721,23 +1451,20 @@ class breakNode extends stmtNode
 
 	// Print like:
 	// ##: break label;
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("break ");
 		label.Unparse(0);
 	}
 
-	void checkTypes()
-	{
-		//TODO: Make sure the label exists in scope, is actually of kind label, and is visible
+	void checkTypes() {
+		// TODO: Make sure the label exists in scope, is actually of kind label,
+		// and is visible
 		label.checkTypes();
 	}
 } // class breakNode
 
-class continueNode extends stmtNode
-{
-	continueNode(identNode i, int line, int col)
-	{
+class continueNode extends stmtNode {
+	continueNode(identNode i, int line, int col) {
 		super(line, col);
 		label = i;
 	}
@@ -1746,46 +1473,39 @@ class continueNode extends stmtNode
 
 	// Print like:
 	// ##: continue label;
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("continue ");
 		label.Unparse(0);
 	}
 
-	void checkTypes()
-	{
-		SymbolInfo info = (LabelSymbolInfo)st.localLookup(label.idname);
-		
-		if(info != null)
-		{
-			LabelSymbolInfo labelInfo = (LabelSymbolInfo)info;
-			
+	void checkTypes() {
+		SymbolInfo info = (LabelSymbolInfo) st.localLookup(label.idname);
+
+		if (info != null) {
+			LabelSymbolInfo labelInfo = (LabelSymbolInfo) info;
+
 			assertTrue(labelInfo.Visible, "Label: " + label.idname + " is no longer visible.");
 		}
 	}
 } // class continueNode
 
-class argsNode extends ASTNode
-{
-	argsNode()
-	{
+class argsNode extends ASTNode {
+	argsNode() {
 	}
 
-	argsNode(exprNode e, argsNode a, int line, int col)
-	{
+	argsNode(exprNode e, argsNode a, int line, int col) {
 		super(line, col);
 		argVal = e;
 		moreArgs = a;
 	}
 
 	static nullArgsNode NULL = new nullArgsNode();
-	private exprNode argVal;
-	private argsNode moreArgs;
+	public exprNode argVal;
+	public argsNode moreArgs;
 
 	// Print like:
 	// thisExpression, nextExpression, ... , lastExpression
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		argVal.Unparse(0);
 
 		// Make sure we're not at the end of the args list
@@ -1796,73 +1516,59 @@ class argsNode extends ASTNode
 		moreArgs.Unparse(0);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		argVal.checkTypes();
 		moreArgs.checkTypes();
 	}
 } // class argsNode
 
-class nullArgsNode extends argsNode
-{
-	nullArgsNode()
-	{
+class nullArgsNode extends argsNode {
+	nullArgsNode() {
 		// empty constructor
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type check needed
 	}
 } // class nullArgsNode
 
-class strLitNode extends exprNode
-{
-	strLitNode(String stringval, int line, int col)
-	{
+class strLitNode extends exprNode {
+	strLitNode(String stringval, int line, int col) {
 		super(line, col);
 		strval = stringval;
 	}
 
 	private final String strval;
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(escapeCharacters(strval));
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// string lits are always correct
 	}
 } // class strLitNode
 
 // abstract superclass; only subclasses are actually created
-abstract class exprNode extends ASTNode
-{
-	exprNode()
-	{
+abstract class exprNode extends ASTNode {
+	exprNode() {
 		super();
 	}
 
-	exprNode(int l, int c)
-	{
+	exprNode(int l, int c) {
 		super(l, c);
 		type = new Types();
 		kind = new Kinds();
 	} // exprNode
 
-	exprNode(int l, int c, Types t, Kinds k)
-	{
+	exprNode(int l, int c, Types t, Kinds k) {
 		super(l, c);
 		type = t;
 		kind = k;
@@ -1873,42 +1579,33 @@ abstract class exprNode extends ASTNode
 	protected Kinds kind; // Used for typechecking: the kind of this node
 }
 
-class nullExprNode extends exprNode
-{
-	nullExprNode()
-	{
+class nullExprNode extends exprNode {
+	nullExprNode() {
 		super();
 	}
 
-	boolean isNull()
-	{
+	boolean isNull() {
 		return true;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// No type check needed
 	}
 } // class nullExprNode
 
-class binaryOpNode extends exprNode
-{
-	binaryOpNode(exprNode e1, int op, exprNode e2, int line, int col)
-	{
+class binaryOpNode extends exprNode {
+	binaryOpNode(exprNode e1, int op, exprNode e2, int line, int col) {
 		super(line, col);
 		operatorCode = op;
 		leftOperand = e1;
 		rightOperand = e2;
 	}
 
-	static String getOpString(int op)
-	{
-		switch (op)
-		{
+	static String getOpString(int op) {
+		switch (op) {
 		case sym.PLUS:
 			return "+";
 		case sym.MINUS:
@@ -1935,8 +1632,7 @@ class binaryOpNode extends exprNode
 		}
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("(");
 		leftOperand.Unparse(0);
 		System.out.print(" " + getOpString(operatorCode) + " ");
@@ -1944,34 +1640,33 @@ class binaryOpNode extends exprNode
 		System.out.print(")");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		leftOperand.checkTypes();
 		rightOperand.checkTypes();
-		
+
 		int returnType = Types.Error;
-		
-		switch(operatorCode)
-		{
-			case sym.PLUS:
-			case sym.MINUS:
-			case sym.TIMES:
-			case sym.SLASH:
-			case sym.LT:
-			case sym.GT:
-			case sym.LEQ:
-			case sym.GEQ:
-			case sym.EQ:
-			case sym.NOTEQ:
-				returnType = assertArithmeticCompatible(leftOperand.kind.val, leftOperand.type.val, rightOperand.kind.val, rightOperand.type.val, 
-						"Left and right operand are not compatible for operator: " + getOpString(operatorCode));
-				break;
-			case sym.CAND:
-			case sym.COR:
-				returnType = assertBooleanCompatible(leftOperand.kind.val, leftOperand.type.val, rightOperand.kind.val, rightOperand.type.val, 
-						"Left and right operands of the operator: " + getOpString(operatorCode) + 
-						" requires both sides to be of type boolean.");
-				break;
+
+		switch (operatorCode) {
+		case sym.PLUS:
+		case sym.MINUS:
+		case sym.TIMES:
+		case sym.SLASH:
+		case sym.LT:
+		case sym.GT:
+		case sym.LEQ:
+		case sym.GEQ:
+		case sym.EQ:
+		case sym.NOTEQ:
+			returnType = assertArithmeticCompatible(leftOperand.kind.val, leftOperand.type.val, rightOperand.kind.val,
+					rightOperand.type.val,
+					"Left and right operand are not compatible for operator: " + getOpString(operatorCode));
+			break;
+		case sym.CAND:
+		case sym.COR:
+			returnType = assertBooleanCompatible(leftOperand.kind.val, leftOperand.type.val, rightOperand.kind.val,
+					rightOperand.type.val, "Left and right operands of the operator: " + getOpString(operatorCode)
+							+ " requires both sides to be of type boolean.");
+			break;
 		}
 
 		kind = new Kinds(Kinds.Value);
@@ -1983,47 +1678,46 @@ class binaryOpNode extends exprNode
 	private final int operatorCode; // Token code of the operator
 } // class binaryOpNode
 
-class unaryOpNode extends exprNode
-{
-	unaryOpNode(int op, exprNode e, int line, int col)
-	{
+class unaryOpNode extends exprNode {
+	unaryOpNode(int op, exprNode e, int line, int col) {
 		super(line, col);
 		operand = e;
 		operatorCode = op;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		if (operatorCode == sym.NOT) {
 			System.out.print("!");
 		}
 		operand.Unparse(0);
 	}
 
-	void checkTypes()
-	{
-        operand.checkTypes();
-        
-        if(operatorCode != sym.NOT){
-            throw new UnsupportedOperationException("! is the only unary operator");
-        }
+	void checkTypes() {
+		operand.checkTypes();
+
+		if (operatorCode == sym.NOT) {
+			// it's a not operator
+		} else if (operatorCode == sym.IDENTIFIER) {
+			// it's used to hold an id
+		} else {
+			// invalid unary operator
+			throw new UnsupportedOperationException(
+					"! is the only unary operator" + "code of operator is : " + operatorCode);
+		}
 	}
 
 	private final exprNode operand;
 	private final int operatorCode; // Token code of the operator
 } // class unaryOpNode
 
-class castNode extends exprNode
-{
-	castNode(typeNode t, exprNode e, int line, int col)
-	{
+class castNode extends exprNode {
+	castNode(typeNode t, exprNode e, int line, int col) {
 		super(line, col);
 		operand = e;
 		resultType = t;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.println("(");
 		resultType.Unparse(0);
 		System.out.println(")");
@@ -2031,79 +1725,121 @@ class castNode extends exprNode
 		operand.Unparse(0);
 	}
 
-	void checkTypes()
-	{
-		// the project doc says :: Any expression (including variables, constants and literals) 
-		// of type int, char or bool may be type-cast to an int, char, float or bool value. 
+	void checkTypes() {
+		// the project doc says :: Any expression (including variables,
+		// constants and literals)
+		// of type int, char or bool may be type-cast to an int, char, float or
+		// bool value.
 		// These are the only type casts allowed.
-		if(resultType.type.val != (Types.Real | Types.Character | Types.Integer | Types.Boolean))
-		{
+		if (resultType.type.val != (Types.Real | Types.Character | Types.Integer | Types.Boolean)) {
 			throw new Error("can only cast to float, char , int and bool");
 		}
-		
-		if((operand.type.val != ( Types.Character | Types.Integer | Types.Boolean)) |(operand.type.val == Types.Real))
-		{
+
+		if ((operand.type.val != (Types.Character | Types.Integer | Types.Boolean))
+				| (operand.type.val == Types.Real)) {
 			throw new Error("can only cast from char , int and bool");
 		}
-	
-		operand.checkTypes();			
+
+		operand.checkTypes();
 	}
 
 	private final exprNode operand;
 	private final typeNode resultType;
 } // class castNode
 
-class fctCallNode extends exprNode
-{
-	fctCallNode(identNode id, argsNode a, int line, int col)
-	{
+class fctCallNode extends exprNode {
+	fctCallNode(identNode id, argsNode a, int line, int col) {
 		super(line, col);
 		methodName = id;
 		methodArgs = a;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		methodName.Unparse(indent);
 		System.out.print('(');
 		methodArgs.Unparse(0);
 		System.out.print(")");
 	}
 
-	void checkTypes()
-	{
-		// TODO: implement the type check or remove exception if type is correct
-		throw new UnsupportedOperationException(
-				"We didn't implement this, yet.");
+	void checkTypes() {
+		SymbolInfo info;
+		// Make sure id is not already declared
+		info = (SymbolInfo) st.globalLookup(methodName.idname);
+
+		if (info != null) {
+
+			methodArgs.checkTypes();
+
+			MethodSymbolInfo methodInfo = (MethodSymbolInfo) info;
+			argsNode argN = methodArgs;
+
+			boolean argsCorrect = true;
+
+			for (int i = 0; i < methodInfo.Arguments.size(); i++) {
+
+				if (!(argN instanceof nullArgsNode)) {
+
+					exprNode whatever = methodArgs.argVal;
+
+					assertTrue(
+						whatever.type.val == methodInfo.Arguments.get(i).type.val && 
+						(
+							(methodInfo.kind.val == Kinds.ScalarParm && 
+								(whatever.kind.val == Kinds.ScalarParm || 
+									whatever.kind.val == Kinds.Value || 
+									whatever.kind.val == Kinds.Var)
+							|| 
+							((methodInfo.kind.val == Kinds.ArrayParm && 
+								(whatever.kind.val == Kinds.ArrayParm || 
+									whatever.kind.val == Kinds.Array))))
+						), error() + "method call parameters did not match the method signature.");
+
+					argN = argN.moreArgs;
+					if ((argN instanceof nullArgsNode) && (i < methodInfo.Arguments.size() - 1)) {
+						// failed test throw error, not enough args in the
+						// function call
+						argsCorrect = false;
+
+						break;
+					}
+				}
+			}
+			if (argsCorrect && !(argN instanceof nullArgsNode)) {
+				// error extra args in the function call, output error
+				System.out.println(error() + "There were too many arguments in the function call");
+			}
+
+			methodName.idinfo = info;
+
+		} else {
+			System.out.println(error() + info.name() + " is already declared.");
+			typeErrors++;
+			methodName.type = new Types(Types.Error);
+		}
 	}
 
 	private final identNode methodName;
 	private final argsNode methodArgs;
 } // class fctCallNode
 
-class identNode extends exprNode
-{
-	identNode(String identname, int line, int col)
-	{
+class identNode extends exprNode {
+	identNode(String identname, int line, int col) {
 		super(line, col, new Types(Types.Unknown), new Kinds(Kinds.Var));
 		idname = identname;
 		nullFlag = false;
 	}
 
-	identNode(boolean flag)
-	{
+	identNode(boolean flag) {
 		super(0, 0, new Types(Types.Unknown), new Kinds(Kinds.Var));
 		idname = "";
 		nullFlag = flag;
 	} // identNode
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(idname);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// identNode is always type correct
 	}
 
@@ -2112,28 +1848,23 @@ class identNode extends exprNode
 	private final boolean nullFlag;
 } // class identNode
 
-class nameNode extends exprNode
-{
-	nameNode(identNode id, exprNode expr, int line, int col)
-	{
+class nameNode extends exprNode {
+	nameNode(identNode id, exprNode expr, int line, int col) {
 		super(line, col);
 		varName = id;
 		indexExpr = expr;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		varName.Unparse(indent);
 	}
 
-	void checkTypes()
-	{
-       varName.checkTypes();
-       indexExpr.checkTypes();
+	void checkTypes() {
+		varName.checkTypes();
+		indexExpr.checkTypes();
 	}
-	
-	boolean isIndexed()
-	{
+
+	boolean isIndexed() {
 		return !(indexExpr instanceof nullExprNode);
 	}
 
@@ -2141,257 +1872,210 @@ class nameNode extends exprNode
 	private final exprNode indexExpr;
 } // class nameNode
 
-class intLitNode extends exprNode
-{
-	intLitNode(int val, int line, int col)
-	{
+class intLitNode extends exprNode {
+	intLitNode(int val, int line, int col) {
 		super(line, col);
 		intval = val;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(intval);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// All int lits are automatically type-correct
 	}
 
 	public final int intval;
 } // class intLitNode
 
-class floatLitNode extends exprNode
-{
-	floatLitNode(float val, int line, int col)
-	{
+class floatLitNode extends exprNode {
+	floatLitNode(float val, int line, int col) {
 		super(line, col);
 		floatval = val;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print(floatval);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// All float lits are automatically type-correct
 	}
 
 	private final float floatval;
 } // class floatLitNode
 
-class charLitNode extends exprNode
-{
-	charLitNode(char val, int line, int col)
-	{
+class charLitNode extends exprNode {
+	charLitNode(char val, int line, int col) {
 		super(line, col);
 		charval = val;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		String tmp = escapeCharacters(charval);
 		System.out.print(tmp);
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// All char lits are automatically type-correct
 	}
 
 	private final char charval;
 } // class charLitNode
 
-class trueNode extends exprNode
-{
-	trueNode(int line, int col)
-	{
+class trueNode extends exprNode {
+	trueNode(int line, int col) {
 		super(line, col);
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("True");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// All true lits are automatically type-correct
 	}
 } // class trueNode
 
-class falseNode extends exprNode
-{
-	falseNode(int line, int col)
-	{
+class falseNode extends exprNode {
+	falseNode(int line, int col) {
 		super(line, col);
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("False");
 	}
 
-	void checkTypes()
-	{
+	void checkTypes() {
 		// False literals are always correct
 	}
 } // class falseNode
 
-class preIncrStmtNode extends stmtNode
-{
-	preIncrStmtNode(nameNode id, int line, int col)
-	{
+class preIncrStmtNode extends stmtNode {
+	preIncrStmtNode(nameNode id, int line, int col) {
 		super(line, col);
 
 		targetID = id;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		genIndent(indent);
 		System.out.print("++");
 		targetID.Unparse(indent);
 	}
 
-	void checkTypes()
-	{
-		SymbolInfo info = (SymbolInfo)st.globalLookup(targetID.varName.idname);
+	void checkTypes() {
+		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
-		intLitNode dec = new intLitNode( 1, targetID.linenum, targetID.colnum);
+		intLitNode dec = new intLitNode(1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(dec, sym.PLUS, targetID.varName, targetID.linenum, targetID.colnum);
 
-		assertTrue(info != null, error() + "ID " + targetID.varName.idname + 
-				" was referenced but was not yet declared.");
-		
-		if(info != null)
-		{	
+		assertTrue(info != null,
+				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
+
+		if (info != null) {
 			// Make sure
-			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
-					error()
-					+ "The value you are trying to Increment is invalid");
+			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
+					error() + "The value you are trying to Increment is invalid");
 		}
 	}
 
 	private nameNode targetID;
 } // class preIncrStmtNode
 
-class postIncrStmtNode extends stmtNode
-{
-	postIncrStmtNode(nameNode id, int line, int col)
-	{
+class postIncrStmtNode extends stmtNode {
+	postIncrStmtNode(nameNode id, int line, int col) {
 		super(line, col);
 
 		targetID = id;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		targetID.Unparse(indent);
 		System.out.print("++");
 	}
 
-	
-	void checkTypes()
-	{
-		SymbolInfo info = (SymbolInfo)st.globalLookup(targetID.varName.idname);
+	void checkTypes() {
+		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
-		intLitNode dec = new intLitNode( 1, targetID.linenum, targetID.colnum);
+		intLitNode dec = new intLitNode(1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
 
-		assertTrue(info != null, error() + "ID " + targetID.varName.idname + 
-				" was referenced but was not yet declared.");
-		
-		if(info != null)
-		{	
-			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
-					error()
-					+ "The value you are trying to Increment is invalid");
+		assertTrue(info != null,
+				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
+
+		if (info != null) {
+			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
+					error() + "The value you are trying to Increment is invalid");
 		}
 	}
-	
+
 	private nameNode targetID;
 } // class postIncrStmtNode
 
-class preDecStmtNode extends stmtNode
-{
-	preDecStmtNode(nameNode id, int line, int col)
-	{
+class preDecStmtNode extends stmtNode {
+	preDecStmtNode(nameNode id, int line, int col) {
 		super(line, col);
 
 		targetID = id;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		System.out.print("--");
 		targetID.Unparse(indent);
 	}
 
-	void checkTypes()
-	{
-		SymbolInfo info = (SymbolInfo)st.globalLookup(targetID.varName.idname);
+	void checkTypes() {
+		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
-		intLitNode dec = new intLitNode( -1, targetID.linenum, targetID.colnum);
+		intLitNode dec = new intLitNode(-1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(dec, sym.PLUS, targetID.varName, targetID.linenum, targetID.colnum);
 
-		assertTrue(info != null, error() + "ID " + targetID.varName.idname + 
-				" was referenced but was not yet declared.");
-		
-		if(info != null)
-		{	
+		assertTrue(info != null,
+				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
+
+		if (info != null) {
 			// Make sure
-			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
-					error()
-					+ "The value you are trying to decrement is invalid");
+			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
+					error() + "The value you are trying to decrement is invalid");
 		}
 	}
 
 	private nameNode targetID;
 } // class preDecStmtNode
 
-class postDecStmtNode extends stmtNode
-{
-	postDecStmtNode(nameNode id, int line, int col)
-	{
+class postDecStmtNode extends stmtNode {
+	postDecStmtNode(nameNode id, int line, int col) {
 		super(line, col);
 
 		targetID = id;
 	}
 
-	void Unparse(int indent)
-	{
+	void Unparse(int indent) {
 		targetID.Unparse(indent);
 		System.out.print("--");
 	}
 
-	
-	
-	void checkTypes()
-	{
-		SymbolInfo info = (SymbolInfo)st.globalLookup(targetID.varName.idname);
+	void checkTypes() {
+		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
-		intLitNode dec = new intLitNode( -1, targetID.linenum, targetID.colnum);
+		intLitNode dec = new intLitNode(-1, targetID.linenum, targetID.colnum);
 
 		binaryOpNode biOp = new binaryOpNode(targetID.varName, sym.PLUS, dec, targetID.linenum, targetID.colnum);
 
-		assertTrue(info != null, error() + "ID " + targetID.varName.idname + 
-				" was referenced but was not yet declared.");
-		
-		if(info != null)
-		{	
+		assertTrue(info != null,
+				error() + "ID " + targetID.varName.idname + " was referenced but was not yet declared.");
+
+		if (info != null) {
 			// Make sure
-			assertAssignmentCompatible(targetID.varName.idinfo, biOp, 
-					error()
-					+ "The value you are trying to decrement is invalid");
+			assertAssignmentCompatible(targetID.varName.idinfo, biOp,
+					error() + "The value you are trying to decrement is invalid");
 		}
 	}
-	
+
 	private nameNode targetID;
-} // class postDecStmtNode 
+} // class postDecStmtNode
