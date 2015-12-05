@@ -246,6 +246,13 @@ class csxLiteNode extends ASTNode {
 	boolean isTypeCorrect() {
 		st.openScope();
 		checkTypes();
+
+		try {
+			st.closeScope();
+		} catch (EmptySTException e) {
+			throw new RuntimeException("Tried to close a scope but no scope was available to close.");
+		}
+		
 		return (typeErrors == 0);
 	} // isTypeCorrect
 
@@ -291,6 +298,12 @@ class classNode extends ASTNode {
 	void checkTypes() {
 		st.openScope();
 		members.checkTypes();
+
+		try {
+			st.closeScope();
+		} catch (EmptySTException e) {
+			throw new RuntimeException("Tried to close a scope but no scope was available to close.");
+		}
 	}
 } // class classNode
 
@@ -752,6 +765,12 @@ class methodDeclNode extends ASTNode {
 			decls.checkTypes();
 
 			stmts.checkTypes();
+
+			try {
+				st.closeScope();
+			} catch (EmptySTException e) {
+				throw new RuntimeException("Tried to close a scope but no scope was available to close.");
+			}
 		}
 	}
 } // class methodDeclNode
@@ -1113,8 +1132,26 @@ class ifThenNode extends stmtNode {
 		condition.checkTypes();
 		assertTrue(condition.type.val == Types.Boolean,
 				error() + "The control expression of an if statement must be a boolean.");
+		
+		st.openScope();
+		
 		thenPart.checkTypes();
+
+		try {
+			st.closeScope();
+		} catch (EmptySTException e) {
+			throw new RuntimeException("Tried to close a scope but no scope was available to close.");
+		}
+		
+		st.openScope();
+		
 		elsePart.checkTypes();
+		
+		try {
+			st.closeScope();
+		} catch (EmptySTException e) {
+			throw new RuntimeException("Tried to close a scope but no scope was available to close.");
+		}
 	}
 
 } // class ifThenNode
@@ -1164,10 +1201,18 @@ class whileNode extends stmtNode {
 
 			SymbolInfo info = (SymbolInfo) st.localLookup(labelAsIdent.idname);
 
-			assertTrue(info != null, "Label: " + labelAsIdent.idname + " was already defined in this scope.");
+			assertTrue(info == null, "Label: " + labelAsIdent.idname + " was already defined in this scope.");
 
 			if (info == null) {
 				labelInfo = new LabelSymbolInfo(labelAsIdent.idname, Kinds.Label, Types.Void, true);
+			}
+
+			try {
+				st.insert(labelInfo);
+			} catch (DuplicateException d) {
+				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
+			} catch (EmptySTException e) {
+				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
 		}
 
@@ -1176,8 +1221,16 @@ class whileNode extends stmtNode {
 		assertTrue(condition.type.val == Types.Boolean,
 				error() + "The control expression of a while loop must be a boolean.");
 
+		st.openScope();
+		
 		loopBody.checkTypes();
 
+		try {
+			st.closeScope();
+		} catch (EmptySTException e) {
+			throw new RuntimeException("Tried to close a scope but no scope was available to close.");
+		}
+		
 		if (labelInfo != null) {
 			labelInfo.Visible = false;
 		}
@@ -1225,7 +1278,16 @@ class forNode extends stmtNode {
 				error() + "The control expression of a for loop must be a boolean.");
 		
 		update.checkTypes();
+		
+		st.openScope();
+		
 		loopBody.checkTypes();
+		
+		try {
+			st.closeScope();
+		} catch (EmptySTException e) {
+			throw new RuntimeException("Tried to close a scope but no scope was available to close.");
+		}
 	}
 }
 
@@ -1455,9 +1517,17 @@ class blockNode extends stmtNode {
 		System.out.print(linenum + ":");
 		genIndent(indent);
 		System.out.println("{");
+		
+		st.openScope();
 
 		decls.Unparse(indent + 1);
 		stmts.Unparse(indent + 1);
+
+		try {
+			st.closeScope();
+		} catch (EmptySTException e) {
+			throw new RuntimeException("Tried to close a scope but no scope was available to close.");
+		}
 
 		System.out.print(closingLineNum + ":");
 		genIndent(indent);
@@ -1494,7 +1564,7 @@ class breakNode extends stmtNode {
 		if (info != null) {
 			LabelSymbolInfo labelInfo = (LabelSymbolInfo) info;
 
-			assertTrue(labelInfo.Visible, "Label: " + label.idname + " is no longer visible.");
+			assertTrue(labelInfo.Visible, error() + "Label: " + label.idname + " is no longer visible.");
 		}
 	}
 } // class breakNode

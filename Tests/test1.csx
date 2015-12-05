@@ -9,10 +9,11 @@ class test {
    };
 
 
-   int f( ) {
+   int funcshaun( ) {
    int j;
    int k;
    float notoptional;
+   bool loop = false;
    for( j = 9; j>0; j--){
        // some junk and stuff
        notoptional=(float)0;
@@ -21,8 +22,18 @@ class test {
 
  for(k = 0; k >= 9;  k = k + 2){
        // some junk and stuff
-       notoptional=1;
+       notoptional=(float)1;
        
+   }
+   
+   outer : while(loop)
+   {
+		inner : while(loop)
+		{
+			continue outer;
+		}
+		
+		break inner;
    }
    
    return 3;
