@@ -1929,16 +1929,10 @@ class fctCallNode extends exprNode {
 
 					assertTrue(
 						whatever.type.val == methodInfo.Arguments.get(i).type.val && 
-						(
-							(methodInfo.kind.val == Kinds.ScalarParm && 
-								(whatever.kind.val == Kinds.ScalarParm || 
-									whatever.kind.val == Kinds.Value || 
-									whatever.kind.val == Kinds.Var)
-							|| 
-							((methodInfo.kind.val == Kinds.ArrayParm && 
-								(whatever.kind.val == Kinds.ArrayParm || 
-									whatever.kind.val == Kinds.Array))))
-						), error() + "Method call parameters did not match the method signature.");
+						(whatever.kind.val == Kinds.ScalarParm || 
+								whatever.kind.val == Kinds.Value || 
+								whatever.kind.val == Kinds.Var),
+							error() + "Method call parameters did not match the method signature.");
 
 					argN = argN.moreArgs;
 					if ((argN instanceof nullArgsNode) && (i < methodInfo.Arguments.size() - 1)) {
