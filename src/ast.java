@@ -742,6 +742,8 @@ class methodDeclNode extends ASTNode {
 			}
 
 			currentMethod = this;
+			
+			this.info = methodInfo;
 
 			st.openScope();
 
@@ -750,8 +752,6 @@ class methodDeclNode extends ASTNode {
 			decls.checkTypes();
 
 			stmts.checkTypes();
-			
-			this.info = methodInfo;
 		}
 	}
 } // class methodDeclNode
@@ -1426,9 +1426,11 @@ class returnNode extends stmtNode {
 	}
 
 	void checkTypes() {
-		// TODO: check that the return type matches currentMethod's return type
-		// - this will need to work with recursion
 		returnVal.checkTypes();
+		
+		assertTrue(currentMethod.info.type.val == returnVal.type.val && 
+				(returnVal.kind.val == Kinds.ScalarParm || returnVal.kind.val == Kinds.Value || returnVal.kind.val == Kinds.Value), 
+				"Return type did not match the method signature return type.");
 	}
 } // class returnNode
 

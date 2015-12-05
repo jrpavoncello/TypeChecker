@@ -9,7 +9,7 @@ class test {
    };
 
 
-   void f( ) {
+   int f( ) {
    int j;
    int k;
    float notoptional;
@@ -24,6 +24,8 @@ class test {
        notoptional=1;
        
    }
+   
+   return 3;
    }
 
 void main( )
