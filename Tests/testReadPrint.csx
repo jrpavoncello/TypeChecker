@@ -8,6 +8,16 @@ class testReadPrint {
 	
 	float f = 0.0;
 	bool b = true;
+	
+	int foo(int i)
+	{
+		return i;
+	}
+	
+	char bar()
+	{
+		return 'b';
+	}
 
 	void main( )
 	{

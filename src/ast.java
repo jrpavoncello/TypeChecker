@@ -1470,8 +1470,54 @@ class callNode extends stmtNode {
 	}
 
 	void checkTypes() {
-		methodName.checkTypes();
-		args.checkTypes();
+		SymbolInfo info;
+		// Make sure id is not already declared
+		info = (SymbolInfo) st.globalLookup(methodName.idname);
+		
+		assertTrue(info != null, error() + methodName.idname + " is not declared.");
+
+		if (info != null) {
+
+			args.checkTypes();
+
+			MethodSymbolInfo methodInfo = (MethodSymbolInfo) info;
+			argsNode argN = args;
+
+			boolean argsCorrect = true;
+
+			for (int i = 0; i < methodInfo.Arguments.size(); i++) {
+
+				if (!(argN instanceof nullArgsNode)) {
+
+					exprNode whatever = args.argVal;
+
+					assertTrue(
+						whatever.type.val == methodInfo.Arguments.get(i).type.val && 
+						(whatever.kind.val == Kinds.ScalarParm || 
+								whatever.kind.val == Kinds.Value || 
+								whatever.kind.val == Kinds.Var),
+							error() + "Method call parameters did not match the method signature.");
+
+					argN = argN.moreArgs;
+					if ((argN instanceof nullArgsNode) && (i < methodInfo.Arguments.size() - 1)) {
+						// failed test throw error, not enough args in the
+						// function call
+						argsCorrect = false;
+
+						break;
+					}
+				}
+			}
+			if (argsCorrect && !(argN instanceof nullArgsNode)) {
+				// error extra args in the function call, output error
+				System.out.println(error() + "There were too many arguments in the function call");
+			}
+
+			methodName.idinfo = info;
+
+		} else {
+			methodName.type = new Types(Types.Error);
+		}
 	}
 } // class callNode
 
@@ -1911,6 +1957,8 @@ class fctCallNode extends exprNode {
 		SymbolInfo info;
 		// Make sure id is not already declared
 		info = (SymbolInfo) st.globalLookup(methodName.idname);
+		
+		assertTrue(info != null, error() + methodName.idname + " is not declared.");
 
 		if (info != null) {
 
@@ -1950,10 +1998,11 @@ class fctCallNode extends exprNode {
 			}
 
 			methodName.idinfo = info;
+			
+			type = info.type;
+			kind = new Kinds(Kinds.Value);
 
 		} else {
-			System.out.println(error() + info.name() + " is already declared.");
-			typeErrors++;
 			methodName.type = new Types(Types.Error);
 		}
 	}
