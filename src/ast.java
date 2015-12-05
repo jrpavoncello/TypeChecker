@@ -30,36 +30,58 @@ abstract class ASTNode {
 				&& (rhsKind == Kinds.Array || rhsKind == Kinds.ArrayParm) && lhsType == rhsType;
 	}
 
-	static void assertAssignmentCompatible(SymbolInfo info, exprNode expression, String errorMsg) {
+	static void assertAssignmentCompatible(exprNode lhs, exprNode rhs, String errorMsg) {
 		// Don't print a type incompatible error message when the test type is
 		// of type Error
-		if (expression.type.val != Types.Error) {
+		if (rhs.type.val != Types.Error) {
 			boolean compatible = false;
+			
+			SymbolInfo lhsInfo = null;
+			
+			boolean isIndexed = false;
+			
+			if(lhs instanceof nameNode)
+			{
+				nameNode lhsName = (nameNode)lhs;
+				
+				lhsInfo = lhsName.varName.idinfo;
+				
+				isIndexed = lhsName.isIndexed();
+			}
+			else
+			{
+				if(lhs instanceof identNode)
+				{
+					identNode lhsIdent = (identNode)lhs;
+					
+					lhsInfo = lhsIdent.idinfo;
+				}
+			}
 
 			// Can't assign to a constant
-			if (!info.constant) {
+			if (!lhsInfo.constant) {
+				
 				// Start checking for array assignment compatibility
+				// LHS can only be name node we are assigning an array
+				if (rhs instanceof nameNode) {
 
-				// RHS can only be name node we are assigning an array
-				if (expression instanceof nameNode) {
-					nameNode name = (nameNode) expression;
+					nameNode rhsName = (nameNode)rhs;
+					
+					// Make sure that the name node is not an array being indexed
+					if (!isIndexed && !rhsName.isIndexed()) {
+						SizedSymbolInfo lhsSizedInfo = null;
+						SizedSymbolInfo rhsSizedInfo = null;
 
-					// Make sure that the name node is not an array being
-					// indexed
-					if (!name.isIndexed()) {
-						SizedSymbolInfo lhsInfo = null;
-						SizedSymbolInfo rhsInfo = null;
-
-						boolean areTypeCompatibleArrays = areBothMatchingTypeArrays(info.type.val, info.kind.val,
-								name.type.val, name.kind.val);
+						boolean areTypeCompatibleArrays = areBothMatchingTypeArrays(lhs.type.val, lhs.kind.val, 
+								rhs.type.val, rhs.kind.val);
 
 						// If the LHS is a character array or string, excluding
 						// string literals and constant character arrays
 						// or we already know both sides are type and kind
 						// compatible
-						if (isCharacterArrayOrString(info.type.val, info.kind.val) || areTypeCompatibleArrays) {
-							if (info instanceof SizedSymbolInfo) {
-								lhsInfo = (SizedSymbolInfo) info;
+						if (isCharacterArrayOrString(lhs.type.val, lhs.kind.val) || areTypeCompatibleArrays) {
+							if (lhsInfo instanceof SizedSymbolInfo) {
+								lhsSizedInfo = (SizedSymbolInfo) lhsInfo;
 							}
 						}
 
@@ -67,20 +89,20 @@ abstract class ASTNode {
 						// string literals
 						// or we already know both sides are type and kind
 						// compatible
-						if (isCharacterArrayOrString(name.type.val, name.kind.val) || areTypeCompatibleArrays) {
-							if (name.varName.idinfo instanceof SizedSymbolInfo) {
-								rhsInfo = (SizedSymbolInfo) name.varName.idinfo;
+						if (isCharacterArrayOrString(rhsName.type.val, rhsName.kind.val) || areTypeCompatibleArrays) {
+							if (rhsName.varName.idinfo instanceof SizedSymbolInfo) {
+								rhsSizedInfo = (SizedSymbolInfo) rhsName.varName.idinfo;
 							}
 						}
 
 						// If we've gotten both the LHS and RHS infos,
 						// indicating type and kind compatibility
-						if (lhsInfo != null && rhsInfo != null) {
+						if (lhsSizedInfo != null && rhsSizedInfo != null) {
 							// Size must be equal unless either the LHS or RHS
 							// are method args, then we can't enforce the array
 							// size
-							if (lhsInfo.Size == rhsInfo.Size || info.kind.val == Kinds.ArrayParm
-									|| name.kind.val == Kinds.ArrayParm) {
+							if (lhsSizedInfo.Size == rhsSizedInfo.Size || lhs.kind.val == Kinds.ArrayParm
+									|| rhs.kind.val == Kinds.ArrayParm) {
 								compatible = true;
 							}
 						}
@@ -90,13 +112,13 @@ abstract class ASTNode {
 				// If no edge case determined the LHS and RHS were compatible
 				if (!compatible) {
 					// Check that the kinds are compatible
-					if (((info.kind.val == Kinds.Array || info.kind.val == Kinds.ArrayParm)
-							&& (expression.kind.val == Kinds.Array || expression.kind.val == Kinds.ArrayParm))
-							|| ((info.kind.val == Kinds.Var || info.kind.val == Kinds.ScalarParm)
-									&& (expression.kind.val == Kinds.Var || expression.kind.val == Kinds.ScalarParm
-											|| expression.kind.val == Kinds.Value))) {
+					if (((lhs.kind.val == Kinds.Array || lhs.kind.val == Kinds.ArrayParm)
+							&& (rhs.kind.val == Kinds.Array || rhs.kind.val == Kinds.ArrayParm))
+							|| ((lhs.kind.val == Kinds.Var || lhs.kind.val == Kinds.ScalarParm)
+									&& (rhs.kind.val == Kinds.Var || rhs.kind.val == Kinds.ScalarParm
+											|| rhs.kind.val == Kinds.Value))) {
 						// Check that the types are exactly equivalent
-						if (info.type.val == expression.type.val) {
+						if (lhs.type.val == rhs.type.val) {
 							compatible = true;
 						}
 					}
@@ -144,6 +166,10 @@ abstract class ASTNode {
 				System.out.println(errorMsg);
 				typeErrors++;
 			}
+			break;
+		default:
+			System.out.println(errorMsg);
+			typeErrors++;
 			break;
 		}
 
@@ -416,33 +442,36 @@ class varDeclNode extends declNode {
 	}
 
 	void checkTypes() {
-		SymbolInfo id;
+		SymbolInfo info;
 		// Make sure id is not already declared
-		id = (SymbolInfo) st.localLookup(varName.idname);
-		if (id == null) {
-			id = new SymbolInfo(varName.idname, new Kinds(Kinds.Var), varType.type, false);
+		info = (SymbolInfo) st.localLookup(varName.idname);
+		if (info == null) {
+			info = new SymbolInfo(varName.idname, new Kinds(Kinds.Var), varType.type, false);
 
 			// Type check the expression
 			varName.checkTypes();
 			rhsExpr.checkTypes();
 
+			varName.idinfo = info;
+			
+			varName.type = info.type;
+			varName.kind = info.kind;
+
 			if(!(rhsExpr instanceof nullExprNode)){
 				// Make sure that there's no type mismatch between typeNode and
 				// initValue
-				assertAssignmentCompatible(id, rhsExpr, error() + "LHS and RHS are not compatible for assignment");
+				assertAssignmentCompatible(varName, rhsExpr, error() + "LHS and RHS are not compatible for assignment");
 			}
 
 			try {
-				st.insert(id);
+				st.insert(info);
 			} catch (DuplicateException d) {
 				throw new RuntimeException("DuplicateException was thrown by st.insert, this \"can't happen\"");
 			} catch (EmptySTException e) {
 				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
-
-			varName.idinfo = id;
 		} else {
-			System.out.println(error() + id.name() + " is already declared.");
+			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
 			varName.type = new Types(Types.Error);
 		}
@@ -480,6 +509,11 @@ class constDeclNode extends declNode {
 		if (info == null) {
 			info = new SymbolInfo(constName.idname, constValue.kind, constValue.type, true);
 
+			constName.idinfo = info;
+			
+			constName.type = info.type;
+			constName.kind = info.kind;
+
 			try {
 				st.insert(info);
 			} catch (DuplicateException d) {
@@ -487,8 +521,7 @@ class constDeclNode extends declNode {
 			} catch (EmptySTException e) {
 				throw new RuntimeException("EmptySTException was thrown by st.insert, this \"can't happen\"");
 			}
-
-			constName.idinfo = info;
+			
 		} else {
 			System.out.println(error() + info.name() + " is already declared.");
 			typeErrors++;
@@ -1044,7 +1077,7 @@ class asgNode extends stmtNode {
 			source.checkTypes();
 
 			// Make sure
-			assertAssignmentCompatible(target.varName.idinfo, source, error() + "Both the left and right"
+			assertAssignmentCompatible(target, source, error() + "Both the left and right"
 					+ " hand sides of an assignment must " + "have compatible types.");
 		}
 	}
