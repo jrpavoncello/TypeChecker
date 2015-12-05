@@ -1,4 +1,4 @@
-class testDecls {
+class testFunctionCall {
 
 	int i = 0;
 	int j [10];
@@ -17,6 +17,12 @@ class testDecls {
 	}
 	void main( )
 	{
+		foo(i, 0.0, 'K');
+		bar(true, 'c');
+
+		foo(0.0, 1, 'K');
+		bar(true);
+
 
 	}
 
