@@ -26,7 +26,6 @@ class testForLoop {
 		}
 		for( name = 'c'; name<'L'; name = 'j'){	
 		}
-		for( foo(); foo<10; name = 'j'){	
-		}
+		
 	}
 }

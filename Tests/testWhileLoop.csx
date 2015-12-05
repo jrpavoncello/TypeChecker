@@ -4,7 +4,7 @@ class testWhileLoop {
 	int j [10];
 	
 	char name = 'c';
-	char newName [10];
+	bool newName [10];
 	
 	float f = 0.0;
 	bool b = true;
