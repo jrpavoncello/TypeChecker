@@ -20,7 +20,7 @@ class testForLoop {
 			
 			}
 		}
-		for( f = 10.45; f>100; f = f+19-9){	
+		for( f = 10.45; f>(float)100; f = f + 19.0 - 9.0){	
 		}
 		for( b = true; b; b = false){	
 		}
