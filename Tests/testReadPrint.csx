@@ -9,25 +9,42 @@ class testReadPrint {
 	float f = 0.0;
 	bool b = true;
 	
-	
+	int foo (int i){
+		
+		return i;
+	}
+	void bar(){
+		
+	}
 	void main( )
 	{
-		read(i);
-		read(i, j);
-		read(i, name, j, newName);
+		// correct
+		read (i);
+		read (i, j);
+		read (i, name, j, newName);
+		// incorrect
+		read (name, f);
+		read (b, f);
+		read (newName);
+		read( foo(i));
 		
-		read(name, f);
-		read(b, f);
-		read(newName);
-			
-		print(i);
-		print(i, j);
-		print(i, name, j, newName);
+		read (bar());
 		
-		print(name, f);
-		print(b, f);
-		print(newName);
-			
+		//correct	
+		print (i);
+		print (i, j);
+		print (i, name, j, newName);
+		
+		// correct
+		print (name, f);
+		print (b, f);
+		print (newName);
+		
+		print(foo(i));
+		
+		print(bar());
 	}
+	
+	
 
 }
