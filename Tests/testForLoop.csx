@@ -12,7 +12,6 @@ class testForLoop {
 	void foo(){
 		
 	}
-
 	void main( )
 	{
 		//correct 
@@ -21,9 +20,13 @@ class testForLoop {
 			
 			}
 		}
-		
-		for( name = 'c'; name<'L'; name = 'j'){
-		
+		for( f = 10.45; f>100; f = f+19-9){	
+		}
+		for( b = true; b; b = false){	
+		}
+		for( name = 'c'; name<'L'; name = 'j'){	
+		}
+		for( foo(); foo<10; name = 'j'){	
 		}
 	}
 }

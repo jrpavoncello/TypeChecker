@@ -1,26 +1,17 @@
 class testIncrementDecrement {
 
 	int i = 0;
-	int j = 1;
+	int j[10] = 1;
+	int jk[-10] = 1;
 	
 	char name = 'c';
-	char newName = 'k';
+	char newName [10] = 'k';
 	
 	float f = 0.0;
-	bool b = true;
+	bool b [10] = true;
 	
 	void main( )
 	{
-	// correct
-		i++;
-		++i;
-		i--;
-		--i;
-	
-	// incorrect
-		f++;
-		++name;
-		b--;
 
 	}
 
