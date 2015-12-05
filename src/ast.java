@@ -1354,6 +1354,10 @@ class nullReadNode extends readNode {
 	void Unparse(int indent) {
 		// No type check needed
 	}
+	
+	void checkTypes(){
+		// Nothing to see here
+	}
 } // class nullReadNode
 
 class printNode extends stmtNode {

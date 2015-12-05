@@ -36,6 +36,10 @@ class test {
 		break inner;
    }
    
+   read(j, k);
+   
+   print(j, k);
+   
    return 3;
    }
 
