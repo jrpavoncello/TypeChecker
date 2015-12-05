@@ -8,14 +8,7 @@ class testReadPrint {
 	
 	float f = 0.0;
 	bool b = true;
-	
-	int foo (int i){
-		
-		return i;
-	}
-	void bar(){
-		
-	}
+
 	void main( )
 	{
 		// correct
@@ -26,9 +19,6 @@ class testReadPrint {
 		read (name, f);
 		read (b, f);
 		read (newName);
-		read( foo(i));
-		
-		read (bar());
 		
 		//correct	
 		print (i);
