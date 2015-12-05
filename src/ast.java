@@ -1201,7 +1201,7 @@ class whileNode extends stmtNode {
 
 			SymbolInfo info = (SymbolInfo) st.localLookup(labelAsIdent.idname);
 
-			assertTrue(info == null, "Label: " + labelAsIdent.idname + " was already defined in this scope.");
+			assertTrue(info == null, error() + "Label: " + labelAsIdent.idname + " was already defined in this scope.");
 
 			if (info == null) {
 				labelInfo = new LabelSymbolInfo(labelAsIdent.idname, Kinds.Label, Types.Void, true);
@@ -1337,7 +1337,7 @@ class readNode extends stmtNode {
 		
 		assertTrue((targetVar.type.val == Types.Integer || targetVar.type.val == Types.Character) &&
 						(targetVar.kind.val == Kinds.Var || targetVar.kind.val == Kinds.ScalarParm), 
-						"Only integer or character variables or scalar parameters are allowed to be read into.");
+						error() + "Only integer or character variables or scalar parameters are allowed to be read into.");
 		
 		moreReads.checkTypes();
 	}
