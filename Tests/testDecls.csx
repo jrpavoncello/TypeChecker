@@ -10,10 +10,10 @@ class testDecls {
 	bool b [10] ;
 	
 	int foo(int f, float k, char n){
-		return f[0];
+		return foo(1,2.3,name);
 	}
 	float bar(bool con, char ar){
-		return bar(b, name);
+		return bar(b[0], name);
 	}
 	void main( )
 	{

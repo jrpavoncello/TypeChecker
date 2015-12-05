@@ -408,7 +408,7 @@ unary			::= NOT:opp unary:u
 			
 unit			::= name:id
 				{:
-					RESULT = new nameNode(id.varName, exprNode.NULL, id.linenum, id.colnum);
+					RESULT = id;
 				:}	
 				| ident:id LPAREN RPAREN
 				{:

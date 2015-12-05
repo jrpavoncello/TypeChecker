@@ -1478,39 +1478,57 @@ class callNode extends stmtNode {
 
 		if (info != null) {
 
+			// Check the types of each argument, so that they evaluate their own types
 			args.checkTypes();
 
 			MethodSymbolInfo methodInfo = (MethodSymbolInfo) info;
-			argsNode argN = args;
-
+			
 			boolean argsCorrect = true;
+			//The reference to the argsNode we should examine next
+			argsNode currentArgsNode = args;
 
+			// Traverse the arguments linked list and verify at each step of the way
+			// that the called argument matches the declared method signature
 			for (int i = 0; i < methodInfo.Arguments.size(); i++) {
 
-				if (!(argN instanceof nullArgsNode)) {
+				if (!(currentArgsNode instanceof nullArgsNode)) {
 
-					exprNode whatever = args.argVal;
+					exprNode calledArg = currentArgsNode.argVal;
 
+					SymbolInfo signatureArg = methodInfo.Arguments.get(i);
+					
+					// Make sure that the types match exactly and that the called arg is a
+					// value, scalar param, or variable. (since we can't return references)
 					assertTrue(
-						whatever.type.val == methodInfo.Arguments.get(i).type.val && 
-						(whatever.kind.val == Kinds.ScalarParm || 
-								whatever.kind.val == Kinds.Value || 
-								whatever.kind.val == Kinds.Var),
+						signatureArg.type.val == calledArg.type.val && 
+						(calledArg.kind.val == Kinds.ScalarParm || 
+							calledArg.kind.val == Kinds.Value || 
+							calledArg.kind.val == Kinds.Var),
 							error() + "Method call parameters did not match the method signature.");
 
-					argN = argN.moreArgs;
-					if ((argN instanceof nullArgsNode) && (i < methodInfo.Arguments.size() - 1)) {
-						// failed test throw error, not enough args in the
-						// function call
+					// Advance ptr to next element
+					currentArgsNode = currentArgsNode.moreArgs;
+					
+					// If we are at the end of the called arguments list but we're not at
+					// the end of the signature arguments list, the # of arguments differed
+					if ((currentArgsNode instanceof nullArgsNode) &&
+							(i < methodInfo.Arguments.size() - 1)) {
+						
+						// So fail because of it
 						argsCorrect = false;
-
+						System.out.println(error() + "Not enough arguments in the method call.");
 						break;
 					}
 				}
 			}
-			if (argsCorrect && !(argN instanceof nullArgsNode)) {
-				// error extra args in the function call, output error
-				System.out.println(error() + "There were too many arguments in the function call");
+		
+			// If we reached the end of the signature arguments and everything was correct
+			// but we didn't reach the end of the called arguments, then the # of arguments differed
+			if (argsCorrect && 
+					!(currentArgsNode instanceof nullArgsNode)) {
+				
+				// So fail because of it
+				System.out.println(error() + "There were too many arguments in the method call.");
 			}
 
 			methodName.idinfo = info;
@@ -1958,43 +1976,62 @@ class fctCallNode extends exprNode {
 		// Make sure id is not already declared
 		info = (SymbolInfo) st.globalLookup(methodName.idname);
 		
+		//Make sure that the name of the method is declared already
 		assertTrue(info != null, error() + methodName.idname + " is not declared.");
 
 		if (info != null) {
 
+			// Check the types of each argument, so that they evaluate their own types
 			methodArgs.checkTypes();
 
 			MethodSymbolInfo methodInfo = (MethodSymbolInfo) info;
-			argsNode argN = methodArgs;
-
+			
 			boolean argsCorrect = true;
+			//The reference to the argsNode we should examine next
+			argsNode currentArgsNode = methodArgs;
 
+			// Traverse the arguments linked list and verify at each step of the way
+			// that the called argument matches the declared method signature
 			for (int i = 0; i < methodInfo.Arguments.size(); i++) {
 
-				if (!(argN instanceof nullArgsNode)) {
+				if (!(currentArgsNode instanceof nullArgsNode)) {
 
-					exprNode whatever = methodArgs.argVal;
+					exprNode calledArg = currentArgsNode.argVal;
 
+					SymbolInfo signatureArg = methodInfo.Arguments.get(i);
+					
+					// Make sure that the types match exactly and that the called arg is a
+					// value, scalar param, or variable. (since we can't return references)
 					assertTrue(
-						whatever.type.val == methodInfo.Arguments.get(i).type.val && 
-						(whatever.kind.val == Kinds.ScalarParm || 
-								whatever.kind.val == Kinds.Value || 
-								whatever.kind.val == Kinds.Var),
-							error() + "Method call parameters did not match the method signature.");
+						signatureArg.type.val == calledArg.type.val && 
+						(calledArg.kind.val == Kinds.ScalarParm || 
+							calledArg.kind.val == Kinds.Value || 
+							calledArg.kind.val == Kinds.Var),
+							error() + "Function call parameters did not match the method signature.");
 
-					argN = argN.moreArgs;
-					if ((argN instanceof nullArgsNode) && (i < methodInfo.Arguments.size() - 1)) {
-						// failed test throw error, not enough args in the
-						// function call
+					// Advance ptr to next element
+					currentArgsNode = currentArgsNode.moreArgs;
+					
+					// If we are at the end of the called arguments list but we're not at
+					// the end of the signature arguments list, the # of arguments differed
+					if ((currentArgsNode instanceof nullArgsNode) &&
+							(i < methodInfo.Arguments.size() - 1)) {
+						
+						// So fail because of it
 						argsCorrect = false;
-
+						System.out.println(error() + "Not enough arguments in the function call.");
 						break;
 					}
 				}
 			}
-			if (argsCorrect && !(argN instanceof nullArgsNode)) {
-				// error extra args in the function call, output error
-				System.out.println(error() + "There were too many arguments in the function call");
+			
+			// If we reached the end of the signature arguments and everything was correct
+			// but we didn't reach the end of the called arguments, then the # of arguments differed
+			if (argsCorrect && 
+					!(currentArgsNode instanceof nullArgsNode)) {
+				
+				// So fail because of it
+				System.out.println(error() + "There were too many arguments in the function call.");
 			}
 
 			methodName.idinfo = info;
@@ -2055,22 +2092,29 @@ class nameNode extends exprNode {
 
 		SymbolInfo info = (SymbolInfo)st.globalLookup(varName.idname);
 		
+		// Make sure the id is defined, a nameNode means it's referencing the id
 		assertTrue(info != null,
 				error() + "ID " + varName.idname + " was referenced but was not yet declared.");
 		
 		if(info != null)
 		{
+			// If the name is being indexed as in id[#], then the kind should not be
+			// the kind of the name, it should be variable since each element of an
+			// array is a variable in this language
 			if(isIndexed())
 			{
 				kind = new Kinds(Kinds.Var);
 			}
 			else
 			{
+				// Otherwise, just set it to the kind that we got from the symbol table
 				kind = info.kind;
 			}
 			
+			// Type is always the type we got from the symbol table
 			type = info.type;
 			
+			// Shortcut to the symbol info
 			varName.idinfo = info;
 		}
 	}
@@ -2178,10 +2222,12 @@ class preIncrStmtNode extends stmtNode {
 
 	void checkTypes() {
 		targetID.checkTypes();
-		
+
+		//Make sure that the id is defined
 		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
 		if (info != null) {
+			//If so, make sure that it's an integer that is either a scalar param or variable
 			assertTrue(
 				info.type.val == Types.Integer &&
 					(info.kind.val == Kinds.ScalarParm || info.kind.val == Kinds.Var), 
@@ -2206,10 +2252,12 @@ class postIncrStmtNode extends stmtNode {
 
 	void checkTypes() {
 		targetID.checkTypes();
-		
+
+		//Make sure that the id is defined
 		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
 		if (info != null) {
+			//If so, make sure that it's an integer that is either a scalar param or variable
 			assertTrue(
 				info.type.val == Types.Integer &&
 					(info.kind.val == Kinds.ScalarParm || info.kind.val == Kinds.Var), 
@@ -2235,9 +2283,11 @@ class preDecStmtNode extends stmtNode {
 	void checkTypes() {
 		targetID.checkTypes();
 		
+		//Make sure that the id is defined
 		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
 		if (info != null) {
+			//If so, make sure that it's an integer that is either a scalar param or variable
 			assertTrue(
 				info.type.val == Types.Integer &&
 					(info.kind.val == Kinds.ScalarParm || info.kind.val == Kinds.Var), 
@@ -2262,10 +2312,12 @@ class postDecStmtNode extends stmtNode {
 
 	void checkTypes() {
 		targetID.checkTypes();
-		
+
+		//Make sure that the id is defined
 		SymbolInfo info = (SymbolInfo) st.globalLookup(targetID.varName.idname);
 
 		if (info != null) {
+			//If so, make sure that it's an integer that is either a scalar param or variable
 			assertTrue(
 				info.type.val == Types.Integer &&
 					(info.kind.val == Kinds.ScalarParm || info.kind.val == Kinds.Var), 
